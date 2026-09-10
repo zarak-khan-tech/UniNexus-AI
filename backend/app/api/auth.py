@@ -7,17 +7,16 @@ from backend.app.core.database import get_db
 from backend.app.core.security import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from backend.app.models.user import User
 from backend.app.schemas.user import UserCreate, UserResponse, Token
+from backend.app.api.deps import get_current_active_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserResponse)
 def register_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if user exists
     db_user = db.query(User).filter(User.email == user.email).first()
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Create new user
     hashed_password = get_password_hash(user.password)
     new_user = User(
         email=user.email,
@@ -46,3 +45,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@router.get("/me", response_model=UserResponse)
+def read_users_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
