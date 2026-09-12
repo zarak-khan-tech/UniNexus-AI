@@ -1,6 +1,31 @@
-﻿import Layout from '../components/Layout';
+﻿import { useEffect, useState } from 'react';
+import Layout from '../components/Layout';
+import api from '../api/client';
+
+function StatCard({ label, value, accent }) {
+  return (
+    <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
+      <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">{label}</div>
+      <div className={`text-3xl font-bold ${accent || 'text-white'}`}>{value}</div>
+    </div>
+  );
+}
 
 export default function Dashboard() {
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await api.get('/stats/overview');
+        setStats(response.data);
+      } catch (err) {
+        console.error('Failed to load stats', err);
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <Layout>
       <div className="p-8 max-w-5xl mx-auto">
@@ -10,18 +35,11 @@ export default function Dashboard() {
             The multi-agent system is online. Use the AI Command Center to issue natural-language tasks to the orchestrator.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-              <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Active Agents</div>
-              <div className="text-3xl font-bold text-white">4</div>
-            </div>
-            <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-              <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Registered Students</div>
-              <div className="text-3xl font-bold text-white">2</div>
-            </div>
-            <div className="bg-slate-900 border border-slate-700 rounded-lg p-4">
-              <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Knowledge Docs</div>
-              <div className="text-3xl font-bold text-white">2</div>
-            </div>
+            <StatCard label="Active Agents" value={stats ? stats.agents : '—'} />
+            <StatCard label="Registered Students" value={stats ? stats.students : '—'} />
+            <StatCard label="Courses" value={stats ? stats.courses : '—'} />
+            <StatCard label="Knowledge Docs" value={stats ? stats.documents : '—'} />
+            <StatCard label="Agent Executions" value={stats ? stats.executions : '—'} accent="text-blue-300" />
           </div>
         </div>
       </div>
