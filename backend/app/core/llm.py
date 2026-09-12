@@ -10,7 +10,8 @@ try:
 except ImportError:
     OLLAMA_AVAILABLE = False
 
-DEFAULT_MODEL = 'llama3.2:1b'
+# Use the bigger 3B model — much smarter than the 1B version
+DEFAULT_MODEL = 'llama3.2:latest'
 
 def check_ollama_status() -> Dict[str, Any]:
     if not OLLAMA_AVAILABLE:
@@ -23,7 +24,8 @@ def check_ollama_status() -> Dict[str, Any]:
             name = m.get('name') if isinstance(m, dict) else getattr(m, 'model', None)
             if name:
                 model_names.append(name)
-        model_ready = any(DEFAULT_MODEL in (n or '') for n in model_names)
+        # Check for either version of llama3.2
+        model_ready = any('llama3.2' in (n or '') for n in model_names)
         return {
             'available': True,
             'default_model': DEFAULT_MODEL,
@@ -39,22 +41,43 @@ def plan_with_llm(user_request: str, available_agents: List[str]) -> Optional[Li
 
     agent_list = ', '.join(available_agents)
 
-    prompt = f'''You plan tasks for a university AI system.
+    prompt = f'''You are a task planner for UniNexus AI, a university intelligence platform.
 
-Agents available: {agent_list}
+AVAILABLE AGENTS:
+- AttendanceAgent: fetches students with LOW attendance (below a threshold). Use when the user asks about attendance.
+- PolicyAgent: retrieves university policy rules (attendance policy, exam rules, etc.). Use when the user asks about rules or policies.
+- RiskAgent: identifies at-risk students using attendance AND grades. Use when the user asks about risk, failure, or academic difficulty.
+- KnowledgeAgent: searches written university documents for answers. Use when the user needs text content or a policy explanation.
 
-Rules:
-- AttendanceAgent: students with low attendance
-- PolicyAgent: institutional policy rules
-- RiskAgent: academic risk analysis
-- KnowledgeAgent: search university documents
+RULES:
+1. Choose ONLY from: {agent_list}
+2. Match agents to the user's actual intent. DO NOT always pick the same agents.
+3. If the user asks about attendance → use AttendanceAgent.
+4. If the user asks about a POLICY or RULE → use KnowledgeAgent and/or PolicyAgent.
+5. If the user asks about which students might fail or are at risk → use RiskAgent.
+6. If the user asks "show students" → use AttendanceAgent first.
+7. If the user says "NOT" or "excluding", still use the relevant agent — we filter results later.
+8. Maximum 4 steps.
 
-User question: "{user_request}"
+EXAMPLES:
 
-Return a JSON object with a "plan" field containing an array of steps.
-Each step: {{"step": 1, "agent": "AgentName", "action": "short text"}}.
+User: "Show students with low attendance"
+Plan: [{{"step": 1, "agent": "AttendanceAgent", "action": "Fetch students with low attendance"}}]
 
-Respond with JSON only.'''
+User: "What is the exam policy?"
+Plan: [{{"step": 1, "agent": "KnowledgeAgent", "action": "Search exam policy documents"}}]
+
+User: "Which students might fail?"
+Plan: [{{"step": 1, "agent": "RiskAgent", "action": "Identify at-risk students"}}]
+
+User: "Tell me about the attendance policy"
+Plan: [{{"step": 1, "agent": "KnowledgeAgent", "action": "Search attendance policy document"}}]
+
+NOW YOUR TURN:
+
+User: "{user_request}"
+
+Return JSON with a "plan" field. Each step needs: "step", "agent", "action". Respond with JSON only.'''
 
     try:
         response = ollama.generate(
