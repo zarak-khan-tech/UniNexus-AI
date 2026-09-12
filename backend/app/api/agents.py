@@ -2,7 +2,7 @@
 from pydantic import BaseModel
 from backend.app.agents.orchestrator import OrchestratorAgent
 from backend.app.agents.registry import registry
-from backend.app.agents.specialized import AttendanceAgent, PolicyAgent, RiskAgent
+from backend.app.agents.specialized import AttendanceAgent, PolicyAgent, RiskAgent, KnowledgeAgent
 from backend.app.api.deps import get_current_active_user
 from backend.app.models.user import User
 
@@ -10,6 +10,7 @@ from backend.app.models.user import User
 registry.register(AttendanceAgent())
 registry.register(PolicyAgent())
 registry.register(RiskAgent())
+registry.register(KnowledgeAgent())
 
 router = APIRouter(prefix="/agents", tags=["AI Agents"])
 

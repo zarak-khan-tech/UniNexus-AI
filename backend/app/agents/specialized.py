@@ -89,3 +89,40 @@ class RiskAgent(BaseAgent):
             }
         finally:
             db.close()
+
+from backend.app.models.document import Document
+from sqlalchemy import or_
+
+class KnowledgeAgent(BaseAgent):
+    def __init__(self):
+        super().__init__(name='KnowledgeAgent', description='Retrieves university policies and documents using keyword search.')
+
+    def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        db = SessionLocal()
+        try:
+            query = task.get('request', '')
+            words = [w for w in query.split() if len(w) > 3]
+            
+            q = db.query(Document)
+            if words:
+                filters = [Document.content.ilike(f'%{w}%') | Document.title.ilike(f'%{w}%') for w in words]
+                q = q.filter(or_(*filters))
+            
+            docs = q.limit(3).all()
+            
+            results = []
+            for doc in docs:
+                results.append({
+                    'title': doc.title,
+                    'category': doc.category,
+                    'content_preview': doc.content[:200] + '...' if len(doc.content) > 200 else doc.content
+                })
+            
+            return {
+                'status': 'success',
+                'agent': self.name,
+                'total_matches': len(results),
+                'documents': results
+            }
+        finally:
+            db.close()

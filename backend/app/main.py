@@ -1,6 +1,6 @@
 ﻿from fastapi import FastAPI
 from backend.app.core.database import engine, Base
-from backend.app.models import tenant, user, student, course, enrollment
+from backend.app.models import tenant, user, student, course, enrollment, document
 from backend.app.api import auth, agents
 
 app = FastAPI(

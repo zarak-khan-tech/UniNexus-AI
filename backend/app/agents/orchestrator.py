@@ -24,9 +24,13 @@ class OrchestratorAgent(BaseAgent):
             plan = [
                 {"step": 1, "agent": "RiskAgent", "action": "Identify at-risk students"}
             ]
+        elif "policy" in user_request or "rule" in user_request or "handbook" in user_request:
+            plan = [
+                {"step": 1, "agent": "KnowledgeAgent", "action": "Search university policy documents"}
+            ]
         else:
             plan = [
-                {"step": 1, "agent": "AttendanceAgent", "action": "Fetch generic data"}
+                {"step": 1, "agent": "KnowledgeAgent", "action": "Search general knowledge base"}
             ]
         
         # 2. Execute
