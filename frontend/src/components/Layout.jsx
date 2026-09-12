@@ -5,6 +5,7 @@ import api from '../api/client';
 const NAV_ITEMS = [
   { name: 'Dashboard', path: '/' },
   { name: 'AI Command Center', path: '/command-center' },
+  { name: 'Analytics', path: '/analytics' },
   { name: 'Agents', path: '/agents' },
   { name: 'Students', path: '/students' },
   { name: 'Courses', path: '/courses' },
