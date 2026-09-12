@@ -1,17 +1,20 @@
 ﻿import { useState } from 'react';
 import api from '../api/client';
+import AgentResult from '../components/AgentResult';
 
 export default function CommandCenter() {
   const [task, setTask] = useState('Show me students with attendance risk');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [showRaw, setShowRaw] = useState({});
 
   const handleRun = async () => {
     if (!task.trim()) return;
     setLoading(true);
     setError(null);
     setResult(null);
+    setShowRaw({});
     try {
       const response = await api.post('/agents/run', { request: task });
       setResult(response.data);
@@ -20,6 +23,10 @@ export default function CommandCenter() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleRaw = (idx) => {
+    setShowRaw((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
   return (
@@ -62,14 +69,12 @@ export default function CommandCenter() {
         </div>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="bg-red-900/30 border border-red-700 rounded-xl p-4 mb-6 text-red-200">
           {error}
         </div>
       )}
 
-      {/* Results */}
       {result && (
         <div className="space-y-6">
           {/* Workflow Status */}
@@ -80,15 +85,15 @@ export default function CommandCenter() {
                 {result.status}
               </span>
             </div>
-            <div className="text-sm text-slate-400 mb-2">
-              <span className="text-slate-500">Orchestrator:</span> {result.orchestrator}
+            <div className="text-sm text-slate-400 mb-1">
+              <span className="text-slate-500">Orchestrator:</span> <span className="text-slate-200">{result.orchestrator}</span>
             </div>
             <div className="text-sm text-slate-400">
-              <span className="text-slate-500">Request:</span> {result.original_request}
+              <span className="text-slate-500">Request:</span> <span className="text-slate-200">{result.original_request}</span>
             </div>
           </div>
 
-          {/* Execution Plan Timeline */}
+          {/* Execution Plan */}
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Execution Plan</h2>
             <div className="space-y-3">
@@ -106,22 +111,34 @@ export default function CommandCenter() {
             </div>
           </div>
 
-          {/* Agent Results */}
+          {/* Agent Results - Human Friendly */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-white">Agent Results</h2>
-            {result.execution_results.map((step) => (
+            {result.execution_results.map((step, idx) => (
               <div key={step.step} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
                 <div className="bg-slate-900/50 px-6 py-3 border-b border-slate-700 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-green-400"></div>
                     <span className="font-medium text-white">{step.agent}</span>
                   </div>
-                  <span className="text-xs text-slate-500">Step {step.step}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-500">Step {step.step}</span>
+                    <button
+                      onClick={() => toggleRaw(idx)}
+                      className="text-xs text-slate-400 hover:text-slate-200 transition-colors border border-slate-700 hover:border-slate-500 rounded px-2 py-0.5"
+                    >
+                      {showRaw[idx] ? 'Hide' : 'View'} Raw
+                    </button>
+                  </div>
                 </div>
                 <div className="p-6">
-                  <pre className="text-xs text-slate-300 bg-slate-950 p-4 rounded-lg overflow-auto max-h-96">
-                    {JSON.stringify(step.result, null, 2)}
-                  </pre>
+                  {showRaw[idx] ? (
+                    <pre className="text-xs text-slate-300 bg-slate-950 p-4 rounded-lg overflow-auto max-h-96">
+                      {JSON.stringify(step.result, null, 2)}
+                    </pre>
+                  ) : (
+                    <AgentResult agentName={step.agent} result={step.result} />
+                  )}
                 </div>
               </div>
             ))}
@@ -129,7 +146,6 @@ export default function CommandCenter() {
         </div>
       )}
 
-      {/* Empty state */}
       {!result && !loading && !error && (
         <div className="bg-slate-800/50 border border-dashed border-slate-700 rounded-xl p-16 text-center">
           <div className="text-slate-500 mb-2">No task executed yet</div>
