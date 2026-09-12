@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import api from '../api/client';
 import AgentResult from '../components/AgentResult';
 
@@ -8,6 +8,19 @@ export default function CommandCenter() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [showRaw, setShowRaw] = useState({});
+  const [llmStatus, setLlmStatus] = useState(null);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await api.get('/agents/llm/status');
+        setLlmStatus(response.data);
+      } catch (err) {
+        setLlmStatus({ available: false, reason: 'Could not reach backend' });
+      }
+    };
+    fetchStatus();
+  }, []);
 
   const handleRun = async () => {
     if (!task.trim()) return;
@@ -19,7 +32,7 @@ export default function CommandCenter() {
       const response = await api.post('/agents/run', { request: task });
       setResult(response.data);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to run agents. Check your connection.');
+      setError(err.response?.data?.detail || 'Failed to run agents.');
     } finally {
       setLoading(false);
     }
@@ -29,13 +42,27 @@ export default function CommandCenter() {
     setShowRaw((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
+  const llmReady = llmStatus?.available && llmStatus?.model_ready;
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">AI Command Center</h1>
-        <p className="text-slate-400">
-          Issue natural-language tasks. The Orchestrator will plan, delegate, and execute across the agent ecosystem.
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">AI Command Center</h1>
+          <p className="text-slate-400">
+            Issue natural-language tasks. The Orchestrator will plan, delegate, and execute across the agent ecosystem.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs bg-slate-800 border border-slate-700 rounded-full px-3 py-1.5">
+          <span className={`inline-block w-2 h-2 rounded-full ${llmReady ? 'bg-green-400' : 'bg-yellow-400'}`}></span>
+          <span className="text-slate-300">
+            {llmReady
+              ? 'LLM: ' + llmStatus.default_model
+              : llmStatus?.available
+                ? 'LLM: model not installed'
+                : 'LLM: unavailable (keyword router)'}
+          </span>
+        </div>
       </div>
 
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-6">
@@ -84,6 +111,9 @@ export default function CommandCenter() {
                     {result.duration_ms} ms
                   </span>
                 )}
+                <span className="text-xs px-3 py-1 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                  {result.planning_source === 'llm' ? 'LLM planned' : 'rule-based'}
+                </span>
                 <span className="text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/30">
                   {result.status}
                 </span>

@@ -85,3 +85,9 @@ def list_executions(
             for r in rows
         ]
     }
+
+from backend.app.core.llm import check_ollama_status
+
+@router.get('/llm/status')
+def llm_status(current_user: User = Depends(get_current_active_user)):
+    return check_ollama_status()
