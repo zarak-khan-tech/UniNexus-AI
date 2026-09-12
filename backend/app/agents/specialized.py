@@ -1,45 +1,91 @@
 ﻿from backend.app.agents.base import BaseAgent
+from backend.app.core.database import SessionLocal
+from backend.app.models.enrollment import Enrollment
+from backend.app.models.student import Student
+from backend.app.models.course import Course
 from typing import Dict, Any
 
 class AttendanceAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="AttendanceAgent", description="Analyzes student attendance data.")
+        super().__init__(name='AttendanceAgent', description='Analyzes student attendance data from the database.')
     
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        # Mock data retrieval
-        return {
-            "status": "success",
-            "agent": self.name,
-            "data": [
-                {"student_id": 101, "name": "Ali Khan", "attendance_percentage": 65},
-                {"student_id": 102, "name": "Sara Ahmed", "attendance_percentage": 58}
-            ]
-        }
+        db = SessionLocal()
+        try:
+            # Get all enrollments with attendance below 75%
+            low_attendance = db.query(Enrollment, Student, Course).join(
+                Student, Enrollment.student_id == Student.id
+            ).join(
+                Course, Enrollment.course_id == Course.id
+            ).filter(Enrollment.attendance_percentage < 75).all()
+            
+            results = []
+            for enrollment, student, course in low_attendance:
+                results.append({
+                    'student_id': student.id,
+                    'student_number': student.student_number,
+                    'name': f'{student.first_name} {student.last_name}',
+                    'course': course.course_code,
+                    'attendance_percentage': enrollment.attendance_percentage
+                })
+            
+            return {
+                'status': 'success',
+                'agent': self.name,
+                'total_flagged': len(results),
+                'data': results
+            }
+        finally:
+            db.close()
 
 class PolicyAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="PolicyAgent", description="Checks institutional policies and thresholds.")
+        super().__init__(name='PolicyAgent', description='Checks institutional policies and thresholds.')
     
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        # Mock policy check
+        # Policy threshold (would eventually be read from a policy document table)
         return {
-            "status": "success",
-            "agent": self.name,
-            "policy_threshold": 75,
-            "rule": "Students below 75% attendance require intervention."
+            'status': 'success',
+            'agent': self.name,
+            'policy_threshold': 75,
+            'rule': 'Students below 75% attendance require intervention.'
         }
 
 class RiskAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name="RiskAgent", description="Analyzes academic risk based on data and policy.")
+        super().__init__(name='RiskAgent', description='Analyzes academic risk based on data and policy.')
     
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        # Mock risk analysis
-        return {
-            "status": "success",
-            "agent": self.name,
-            "at_risk_students": [
-                {"student_id": 101, "risk_level": "Medium"},
-                {"student_id": 102, "risk_level": "High"}
-            ]
-        }
+        db = SessionLocal()
+        try:
+            # Combine low attendance + low grades into a risk score
+            at_risk = db.query(Enrollment, Student).join(
+                Student, Enrollment.student_id == Student.id
+            ).all()
+            
+            risk_assessments = []
+            for enrollment, student in at_risk:
+                # Simple deterministic risk logic (AI reasoning comes later)
+                if enrollment.attendance_percentage < 60 or enrollment.grade in ['D', 'F']:
+                    level = 'High'
+                elif enrollment.attendance_percentage < 75 or enrollment.grade == 'C':
+                    level = 'Medium'
+                else:
+                    level = 'Low'
+                
+                if level in ['High', 'Medium']:
+                    risk_assessments.append({
+                        'student_id': student.id,
+                        'name': f'{student.first_name} {student.last_name}',
+                        'attendance': enrollment.attendance_percentage,
+                        'grade': enrollment.grade,
+                        'risk_level': level
+                    })
+            
+            return {
+                'status': 'success',
+                'agent': self.name,
+                'at_risk_students': risk_assessments
+            }
+        finally:
+            db.close()
