@@ -61,7 +61,8 @@ Respond with JSON only.'''
             model=DEFAULT_MODEL,
             prompt=prompt,
             format='json',
-            options={'temperature': 0.1}
+            options={'temperature': 0.1},
+            keep_alive='30m'
         )
         raw = response.get('response', '') if isinstance(response, dict) else getattr(response, 'response', '')
         if not raw:
