@@ -2,6 +2,7 @@
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CommandCenter from './pages/CommandCenter';
+import AuditLogs from './pages/AuditLogs';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -15,6 +16,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
+        <Route path="/audit" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
       </Routes>
     </Router>
   );
