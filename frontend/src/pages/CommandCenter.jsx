@@ -38,7 +38,6 @@ export default function CommandCenter() {
         </p>
       </div>
 
-      {/* Task Input */}
       <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 mb-6">
         <label className="block text-sm font-medium text-slate-300 mb-2">Natural Language Task</label>
         <textarea
@@ -46,7 +45,6 @@ export default function CommandCenter() {
           onChange={(e) => setTask(e.target.value)}
           rows={3}
           className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 resize-none"
-          placeholder="e.g., Show me students with attendance risk"
         />
         <div className="flex items-center justify-between mt-4">
           <div className="text-xs text-slate-500">
@@ -77,13 +75,22 @@ export default function CommandCenter() {
 
       {result && (
         <div className="space-y-6">
-          {/* Workflow Status */}
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">Workflow Execution</h2>
-              <span className="text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/30">
-                {result.status}
-              </span>
+              <div className="flex items-center gap-2">
+                {result.duration_ms != null && (
+                  <span className="text-xs px-3 py-1 rounded-full bg-slate-700 text-slate-300">
+                    {result.duration_ms} ms
+                  </span>
+                )}
+                <span className="text-xs px-3 py-1 rounded-full bg-green-500/20 text-green-300 border border-green-500/30">
+                  {result.status}
+                </span>
+              </div>
+            </div>
+            <div className="text-sm text-slate-400 mb-1">
+              <span className="text-slate-500">Execution ID:</span> <span className="text-slate-200 font-mono">#{result.execution_id}</span>
             </div>
             <div className="text-sm text-slate-400 mb-1">
               <span className="text-slate-500">Orchestrator:</span> <span className="text-slate-200">{result.orchestrator}</span>
@@ -93,7 +100,6 @@ export default function CommandCenter() {
             </div>
           </div>
 
-          {/* Execution Plan */}
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6">
             <h2 className="text-lg font-semibold text-white mb-4">Execution Plan</h2>
             <div className="space-y-3">
@@ -111,7 +117,6 @@ export default function CommandCenter() {
             </div>
           </div>
 
-          {/* Agent Results - Human Friendly */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-white">Agent Results</h2>
             {result.execution_results.map((step, idx) => (

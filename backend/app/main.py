@@ -1,7 +1,7 @@
 ﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.database import engine, Base
-from backend.app.models import tenant, user, student, course, enrollment, document
+from backend.app.models import tenant, user, student, course, enrollment, document, agent_execution
 from backend.app.api import auth, agents
 
 app = FastAPI(
@@ -10,7 +10,6 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# CORS Configuration - allow frontend to talk to backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
