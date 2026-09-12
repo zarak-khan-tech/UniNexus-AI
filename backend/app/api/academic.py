@@ -7,6 +7,7 @@ from backend.app.models.user import User
 from backend.app.models.student import Student
 from backend.app.models.course import Course
 from backend.app.models.enrollment import Enrollment
+from backend.app.models.document import Document
 
 router = APIRouter(prefix='/academic', tags=['Academic Directory'])
 
@@ -58,3 +59,24 @@ def list_courses(
             'enrolled_students': enrollment_count,
         })
     return {'total': len(results), 'courses': results}
+
+@router.get('/documents')
+def list_documents(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    '''Returns all knowledge base documents for the current tenant.'''
+    docs = db.query(Document).filter(Document.tenant_id == current_user.tenant_id).all()
+    return {
+        'total': len(docs),
+        'documents': [
+            {
+                'id': d.id,
+                'title': d.title,
+                'category': d.category,
+                'content': d.content,
+                'created_at': d.created_at.isoformat(),
+            }
+            for d in docs
+        ]
+    }
