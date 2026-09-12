@@ -33,6 +33,57 @@ def check_ollama_status() -> Dict[str, Any]:
     except Exception as e:
         return {'available': False, 'reason': str(e)}
 
+def plan_with_llm(user_request: str, available_agents: List[str]) -> Optional[List[Dict]]:
+    if not available_agents or not OLLAMA_AVAILABLE:
+        return None
+
+    agent_list = ', '.join(available_agents)
+
+    prompt = f'''You plan tasks for a university AI system.
+
+Agents available: {agent_list}
+
+Rules:
+- AttendanceAgent: students with low attendance
+- PolicyAgent: institutional policy rules
+- RiskAgent: academic risk analysis
+- KnowledgeAgent: search university documents
+
+User question: "{user_request}"
+
+Return a JSON object with a "plan" field containing an array of steps.
+Each step: {{"step": 1, "agent": "AgentName", "action": "short text"}}.
+
+Respond with JSON only.'''
+
+    try:
+        response = ollama.generate(
+            model=DEFAULT_MODEL,
+            prompt=prompt,
+            format='json',
+            options={'temperature': 0.1}
+        )
+        raw = response.get('response', '') if isinstance(response, dict) else getattr(response, 'response', '')
+        if not raw:
+            return None
+        data = json.loads(raw)
+        plan = data.get('plan') if isinstance(data, dict) else data
+        if not isinstance(plan, list) or not plan:
+            return None
+        valid_agents = set(available_agents)
+        for step in plan:
+            if not isinstance(step, dict):
+                return None
+            if step.get('agent') not in valid_agents:
+                logger.warning(f'LLM chose invalid agent: {step.get("agent")}')
+                return None
+            if 'step' not in step or 'action' not in step:
+                return None
+        return plan
+    except Exception as e:
+        logger.error(f'LLM planning failed: {e}')
+        return None
+
 def generate_completion(prompt: str, model: str = DEFAULT_MODEL) -> Optional[str]:
     if not OLLAMA_AVAILABLE:
         return None
@@ -43,56 +94,4 @@ def generate_completion(prompt: str, model: str = DEFAULT_MODEL) -> Optional[str
         return getattr(response, 'response', None)
     except Exception as e:
         logger.error(f'Ollama generation failed: {e}')
-        return None
-
-def plan_with_llm(user_request: str, available_agents: List[str]) -> Optional[List[Dict]]:
-    if not available_agents:
-        return None
-    agent_list = '\n'.join(f'- {a}' for a in available_agents)
-    prompt = f'''You are the orchestrator of a multi-agent university AI platform.
-
-Available agents:
-{agent_list}
-
-Agent responsibilities:
-- AttendanceAgent: retrieves students with low attendance
-- PolicyAgent: looks up institutional policy rules and thresholds
-- RiskAgent: analyzes academic risk using attendance and grades
-- KnowledgeAgent: searches university policy documents
-
-User request: "{user_request}"
-
-Task: Return ONLY a valid JSON array of steps.
-
-Rules:
-1. Use ONLY agents from the list above.
-2. Each step needs: "step" (int), "agent" (exact name), "action" (short text).
-3. Keep to 1-4 steps.
-4. Return ONLY raw JSON. No markdown, no code fences.
-
-Example: [{{"step": 1, "agent": "KnowledgeAgent", "action": "Search policies"}}]
-
-Your JSON:'''
-    raw = generate_completion(prompt)
-    if not raw:
-        return None
-    try:
-        start = raw.find('[')
-        end = raw.rfind(']') + 1
-        if start == -1 or end <= start:
-            return None
-        plan = json.loads(raw[start:end])
-        if not isinstance(plan, list) or not plan:
-            return None
-        valid_agents = set(available_agents)
-        for step in plan:
-            if not isinstance(step, dict):
-                return None
-            if step.get('agent') not in valid_agents:
-                return None
-            if 'step' not in step or 'action' not in step:
-                return None
-        return plan
-    except Exception as e:
-        logger.error(f'Failed to parse LLM plan: {e}')
         return None
