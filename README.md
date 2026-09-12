@@ -4,33 +4,122 @@
 
 Built by **ZARAK KHAN**
 
-A modular AI platform with real multi-agent orchestration, local LLM planning (no paid APIs), multi-tenant data isolation, JWT auth, and automated tests.
+UniNexus AI is a portfolio-focused university intelligence platform built around a real multi-agent architecture. It is designed as an intelligent layer over university systems such as LMS, SIS, ERP, and institutional portals.
+
+> **This is not a chatbot.** An orchestrator plans tasks and delegates them to specialized agents that work with university data and institutional knowledge.
 
 ---
 
-## What This Is
+## What Makes It Different
 
-Not a chatbot. A genuine multi-agent system:
+- **Agent Orchestration** — a central Orchestrator plans and delegates tasks
+- **4 Specialized Agents** — Attendance, Policy, Risk, and Knowledge
+- **Local LLM Planning** — Ollama with `llama3.2:1b`, with a deterministic fallback when the model is unavailable
+- **Database-Backed Intelligence** — agents operate on live application data
+- **Multi-Tenant Architecture** — university data is isolated through `tenant_id`
+- **JWT Authentication** — protected API routes with role-aware access
+- **Audit Trail** — agent executions are persisted for traceability
+- **Analytics Dashboard** — visual reporting for platform activity
+- **Automated Testing** — 12 pytest tests covering core API behavior
 
-- **Orchestrator** plans tasks and delegates to specialized agents
-- **Local LLM** (Ollama llama3.2) for intelligent planning - free, offline
-- **4 real agents** - Attendance, Policy, Risk, Knowledge - query a live database
-- **Multi-tenant** - strict isolation between universities
-- **Full audit trail** - every agent execution is persisted
-- **12 automated tests** - all passing
+---
+
+## Core Agents
+
+| Agent | Responsibility |
+|---|---|
+| **AttendanceAgent** | Identifies students with attendance risk |
+| **PolicyAgent** | Retrieves institutional policy thresholds and rules |
+| **RiskAgent** | Analyzes academic risk using attendance and grades |
+| **KnowledgeAgent** | Retrieves relevant institutional documents |
+
+New agents can be added through the registry without changing the orchestrator flow.
 
 ---
 
 ## Tech Stack
 
-| Layer | Choice |
-|-------|--------|
-| Backend | FastAPI, SQLAlchemy, SQLite/PostgreSQL |
-| Frontend | React 19, Vite, Tailwind CSS v4 |
+| Layer | Technology |
+|---|---|
+| Backend | FastAPI, SQLAlchemy |
+| Frontend | React 19, Vite, Tailwind CSS |
 | Charts | Recharts |
-| Auth | JWT, bcrypt |
-| LLM | Ollama llama3.2 - local, free |
-| Tests | pytest, httpx |
+| Database | SQLite (development), PostgreSQL (production path) |
+| Authentication | JWT, bcrypt |
+| LLM | Ollama (`llama3.2:1b`) |
+| Testing | pytest, httpx |
+
+---
+
+## Application Areas
+
+The current interface includes:
+
+- Dashboard
+- AI Command Center
+- Agent Registry
+- Students Directory
+- Courses Directory
+- Knowledge Base
+- Audit Logs
+- Analytics
+- Login and Registration
+
+---
+
+## Screenshots
+
+Application screenshots will be added here in the repository as part of the final portfolio presentation.
+
+---
+
+## Architecture
+
+```text
+React Frontend
+    |
+    | JWT-authenticated REST API
+    v
+FastAPI Backend
+    |
+    v
+Orchestrator
+    |
+    +--> AttendanceAgent
+    +--> PolicyAgent
+    +--> RiskAgent
+    +--> KnowledgeAgent
+    |
+    +--> SQLite / PostgreSQL
+    |
+    +--> Ollama (local LLM planning)
+```
+
+---
+
+## Multi-Tenancy
+
+Every sensitive domain model carries a `tenant_id`. API queries are scoped to the authenticated user's tenant so one university cannot read another university's application data.
+
+## Authentication
+
+- JWT access tokens
+- Passwords hashed with bcrypt
+- Protected API routes
+- Frontend token handling through an Axios interceptor
+
+## Audit Logging
+
+Every agent execution is persisted with execution metadata, allowing the platform to expose an auditable history through the Audit Logs interface.
+
+## Database
+
+- **Development:** SQLite (`uninexus.db`)
+- **Production path:** PostgreSQL using the same SQLAlchemy model layer
+
+## LLM Integration
+
+`backend/app/core/llm.py` wraps Ollama for local planning. The planner requests structured JSON output and falls back to deterministic keyword-based planning when Ollama is unavailable.
 
 ---
 
@@ -38,88 +127,97 @@ Not a chatbot. A genuine multi-agent system:
 
 ### Backend
 
-    cd F:\UniNexus-AI
-    python -m venv .venv
-    .\.venv\Scripts\Activate.ps1
-    python -m pip install fastapi uvicorn sqlalchemy pydantic-settings python-jose passlib python-multipart email-validator ollama pytest httpx
-    python seed_demo_data.py
-    python seed_documents.py
-    uvicorn backend.app.main:app --reload
+```powershell
+cd F:\UniNexus-AI
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install fastapi "uvicorn[standard]" sqlalchemy pydantic-settings python-jose[cryptography] "passlib[bcrypt]" python-multipart email-validator ollama pytest httpx
+python seed_demo_data.py
+python seed_documents.py
+uvicorn backend.app.main:app --reload
+```
 
-Backend runs at http://127.0.0.1:8000, docs at /docs
+Backend: `http://127.0.0.1:8000`  
+API docs: `http://127.0.0.1:8000/docs`
 
 ### Frontend
 
-    cd frontend
-    npm install
-    npm run dev
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-Frontend runs at http://localhost:5173
+Frontend: `http://localhost:5173`
 
-### Local LLM (optional)
+### Local LLM
 
-    ollama pull llama3.2:1b
+```powershell
+ollama pull llama3.2:1b
+```
 
-If Ollama is not running, the platform falls back to keyword-based planning.
-
-### Default Login
-
-- Email: admin@demo.university.edu
-- Password: securepassword123
-- Tenant ID: 1
+Ollama is optional for the demo flow because the orchestrator includes a deterministic fallback.
 
 ---
 
 ## Testing
 
-    .\.venv\Scripts\Activate.ps1
-    python -m pytest tests/ -v
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pytest tests/ -v
+```
 
-Expected: 12 passed
+Expected: **12 passing tests**
 
 ---
 
 ## Project Structure
 
-    UniNexus-AI/
-      backend/app/
-        agents/       BaseAgent, Orchestrator, specialized agents, registry
-        api/          auth, agents, stats, academic, analytics
-        core/         config, database, security, LLM wrapper
-        models/       SQLAlchemy models
-        schemas/      Pydantic schemas
-        main.py       FastAPI entry
-      frontend/src/
-        api/          Axios client with JWT interceptor
-        components/   Layout, AgentResult
-        pages/        Login, Register, Dashboard, CommandCenter, Analytics
-      tests/          pytest suite
-      seed_demo_data.py
-      seed_documents.py
-      .env.example
-      README.md
+```text
+UniNexus-AI/
+├── backend/app/
+│   ├── agents/       # orchestrator, base agent, specialized agents, registry
+│   ├── api/          # authentication, agents, stats, academic, analytics
+│   ├── core/         # configuration, database, security, LLM wrapper
+│   ├── models/       # SQLAlchemy models
+│   ├── schemas/      # Pydantic schemas
+│   └── main.py       # FastAPI entry point
+├── frontend/src/
+│   ├── api/          # Axios client
+│   ├── components/   # reusable UI components
+│   └── pages/        # application pages
+├── tests/             # pytest suite
+├── docs/              # project documentation
+├── seed_demo_data.py
+├── seed_documents.py
+├── .env.example
+├── .gitignore
+├── LICENSE
+└── README.md
+```
 
 ---
 
 ## Honest Limitations
 
-This is a portfolio demonstration, not production software:
+This repository is a **portfolio demonstration**, not production university software.
 
-- No real university integration - uses a Demo University
-- Small LLM llama3.2 - free and local but less capable than GPT-4
-- Keyword search only - semantic RAG is on the roadmap
-- No human approval UI yet - architecture supports it
-- SQLite in dev - production would use PostgreSQL
+- No live integration with a real university LMS, SIS, ERP, or portal yet
+- Knowledge retrieval is currently keyword-based rather than vector-semantic RAG
+- Human approval UI is not implemented yet
+- SQLite is used for development
+- The local LLM is intentionally small to keep the project free and lightweight
 
 ---
 
 ## Roadmap
 
 - Semantic RAG with vector embeddings
-- Human approval workflow
+- Human approval workflows
 - Email and in-app notifications
 - LMS connectors (Moodle, Canvas via LTI)
-- Docker Compose for one-command deploy
+- Docker Compose deployment
+- Production-grade university integrations
 
 ---
 
@@ -127,4 +225,4 @@ This is a portfolio demonstration, not production software:
 
 MIT
 
-**Built by ZARAK KHAN** - UniNexus AI, 2026
+**Built by ZARAK KHAN — UniNexus AI, 2026**
