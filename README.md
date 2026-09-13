@@ -69,7 +69,68 @@ The current interface includes:
 
 ## Screenshots
 
-Application screenshots will be added here in the repository as part of the final portfolio presentation.
+A gallery of the current UniNexus AI interface and workflow states is included below.
+
+<details>
+<summary><strong>View all application screenshots</strong></summary>
+
+<br>
+
+<p align="center">
+  <img src="docs/Screenshot%20(966).png" alt="UniNexus AI application screenshot 01" width="48%">
+  <img src="docs/Screenshot%20(967).png" alt="UniNexus AI application screenshot 02" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(978).png" alt="UniNexus AI application screenshot 03" width="48%">
+  <img src="docs/Screenshot%20(979).png" alt="UniNexus AI application screenshot 04" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(980).png" alt="UniNexus AI application screenshot 05" width="48%">
+  <img src="docs/Screenshot%20(985).png" alt="UniNexus AI application screenshot 06" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(986).png" alt="UniNexus AI application screenshot 07" width="48%">
+  <img src="docs/Screenshot%20(987).png" alt="UniNexus AI application screenshot 08" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(988).png" alt="UniNexus AI application screenshot 09" width="48%">
+  <img src="docs/Screenshot%20(989).png" alt="UniNexus AI application screenshot 10" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(997).png" alt="UniNexus AI application screenshot 11" width="48%">
+  <img src="docs/Screenshot%20(1000).png" alt="UniNexus AI application screenshot 12" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(1007).png" alt="UniNexus AI application screenshot 13" width="48%">
+  <img src="docs/Screenshot%20(1008).png" alt="UniNexus AI application screenshot 14" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(1009).png" alt="UniNexus AI application screenshot 15" width="48%">
+  <img src="docs/Screenshot%20(1010).png" alt="UniNexus AI application screenshot 16" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(1013).png" alt="UniNexus AI application screenshot 17" width="48%">
+  <img src="docs/Screenshot%20(1017).png" alt="UniNexus AI application screenshot 18" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(1018).png" alt="UniNexus AI application screenshot 19" width="48%">
+  <img src="docs/Screenshot%20(1019).png" alt="UniNexus AI application screenshot 20" width="48%">
+</p>
+
+<p align="center">
+  <img src="docs/Screenshot%20(1020).png" alt="UniNexus AI application screenshot 21" width="48%">
+</p>
+
+</details>
 
 ---
 
