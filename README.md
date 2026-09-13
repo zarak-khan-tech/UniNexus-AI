@@ -69,68 +69,103 @@ The current interface includes:
 
 ## Screenshots
 
-A gallery of the current UniNexus AI interface and workflow states is included below.
+The screenshots below follow the **actual application flow** rather than the upload/file-name order: authentication → dashboard → AI workflows → core university modules → audit and analytics.
 
-<details>
-<summary><strong>View all application screenshots</strong></summary>
+### 1. Authentication
 
-<br>
+#### Login
 
-<p align="center">
-  <img src="docs/Screenshot%20(966).png" alt="UniNexus AI application screenshot 01" width="48%">
-  <img src="docs/Screenshot%20(967).png" alt="UniNexus AI application screenshot 02" width="48%">
-</p>
+<img src="docs/Screenshot%20(1017).png" alt="UniNexus AI Login" width="100%">
 
-<p align="center">
-  <img src="docs/Screenshot%20(978).png" alt="UniNexus AI application screenshot 03" width="48%">
-  <img src="docs/Screenshot%20(979).png" alt="UniNexus AI application screenshot 04" width="48%">
-</p>
+#### Registration
 
-<p align="center">
-  <img src="docs/Screenshot%20(980).png" alt="UniNexus AI application screenshot 05" width="48%">
-  <img src="docs/Screenshot%20(985).png" alt="UniNexus AI application screenshot 06" width="48%">
-</p>
+<img src="docs/Screenshot%20(1019).png" alt="UniNexus AI Registration" width="100%">
 
-<p align="center">
-  <img src="docs/Screenshot%20(986).png" alt="UniNexus AI application screenshot 07" width="48%">
-  <img src="docs/Screenshot%20(987).png" alt="UniNexus AI application screenshot 08" width="48%">
-</p>
+#### Registration — Role Selection
 
-<p align="center">
-  <img src="docs/Screenshot%20(988).png" alt="UniNexus AI application screenshot 09" width="48%">
-  <img src="docs/Screenshot%20(989).png" alt="UniNexus AI application screenshot 10" width="48%">
-</p>
+<img src="docs/Screenshot%20(1013).png" alt="UniNexus AI registration role selection" width="100%">
 
-<p align="center">
-  <img src="docs/Screenshot%20(997).png" alt="UniNexus AI application screenshot 11" width="48%">
-  <img src="docs/Screenshot%20(1000).png" alt="UniNexus AI application screenshot 12" width="48%">
-</p>
+#### Registration — Validation
 
-<p align="center">
-  <img src="docs/Screenshot%20(1007).png" alt="UniNexus AI application screenshot 13" width="48%">
-  <img src="docs/Screenshot%20(1008).png" alt="UniNexus AI application screenshot 14" width="48%">
-</p>
+<img src="docs/Screenshot%20(1020).png" alt="UniNexus AI registration validation" width="100%">
 
-<p align="center">
-  <img src="docs/Screenshot%20(1009).png" alt="UniNexus AI application screenshot 15" width="48%">
-  <img src="docs/Screenshot%20(1010).png" alt="UniNexus AI application screenshot 16" width="48%">
-</p>
+### 2. Dashboard
 
-<p align="center">
-  <img src="docs/Screenshot%20(1013).png" alt="UniNexus AI application screenshot 17" width="48%">
-  <img src="docs/Screenshot%20(1017).png" alt="UniNexus AI application screenshot 18" width="48%">
-</p>
+<img src="docs/Screenshot%20(1018).png" alt="UniNexus AI Dashboard" width="100%">
 
-<p align="center">
-  <img src="docs/Screenshot%20(1018).png" alt="UniNexus AI application screenshot 19" width="48%">
-  <img src="docs/Screenshot%20(1019).png" alt="UniNexus AI application screenshot 20" width="48%">
-</p>
+### 3. AI Command Center — Agentic Workflow
 
-<p align="center">
-  <img src="docs/Screenshot%20(1020).png" alt="UniNexus AI application screenshot 21" width="48%">
-</p>
+#### Task Ready
 
-</details>
+<img src="docs/Screenshot%20(1007).png" alt="AI Command Center task input" width="100%">
+
+#### Task Executing
+
+<img src="docs/Screenshot%20(1008).png" alt="AI Command Center executing workflow" width="100%">
+
+#### Orchestrated Execution Plan
+
+<img src="docs/Screenshot%20(1009).png" alt="AI Command Center execution plan with RiskAgent" width="100%">
+
+#### RiskAgent Results
+
+<img src="docs/Screenshot%20(1010).png" alt="RiskAgent execution results" width="100%">
+
+### 4. AI Command Center — Knowledge + Policy Workflow
+
+#### Attendance Rules Request
+
+<img src="docs/Screenshot%20(978).png" alt="Knowledge and policy workflow request" width="100%">
+
+#### KnowledgeAgent Results
+
+<img src="docs/Screenshot%20(979).png" alt="KnowledgeAgent results" width="100%">
+
+#### PolicyAgent Results
+
+<img src="docs/Screenshot%20(980).png" alt="PolicyAgent results" width="100%">
+
+### 5. AI Command Center — Attendance Workflow
+
+#### Low-Attendance Request and Plan
+
+<img src="docs/Screenshot%20(966).png" alt="Attendance workflow execution plan" width="100%">
+
+#### AttendanceAgent Results
+
+<img src="docs/Screenshot%20(967).png" alt="AttendanceAgent results" width="100%">
+
+### 6. University Management Modules
+
+#### AI Agent Registry
+
+<img src="docs/Screenshot%20(985).png" alt="AI Agent Registry" width="100%">
+
+#### Students
+
+<img src="docs/Screenshot%20(986).png" alt="Students directory" width="100%">
+
+#### Courses
+
+<img src="docs/Screenshot%20(987).png" alt="Courses directory" width="100%">
+
+#### Knowledge Base
+
+<img src="docs/Screenshot%20(988).png" alt="Knowledge Base" width="100%">
+
+### 7. Audit & Analytics
+
+#### Audit Logs
+
+<img src="docs/Screenshot%20(989).png" alt="Audit Logs" width="100%">
+
+#### Analytics Overview
+
+<img src="docs/Screenshot%20(997).png" alt="Analytics overview" width="100%">
+
+#### Analytics — Detailed Charts
+
+<img src="docs/Screenshot%20(1000).png" alt="Analytics detailed charts" width="100%">
 
 ---
 
