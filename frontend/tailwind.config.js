@@ -19,17 +19,26 @@ export default {
         },
       },
       boxShadow: {
-        'card': '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.06)',
-        'card-hover': '0 2px 4px rgba(15,23,42,0.06), 0 8px 24px rgba(15,23,42,0.10)',
+        // English: Realistic layered shadows — multiple transparent layers create true depth.
+        // Roman Urdu: Layered shadow — multiple transparent layers se asli gehraai aati hai.
+        'card': '0 0 0 1px rgba(15,23,42,0.03), 0 1px 1px rgba(15,23,42,0.02), 0 4px 8px rgba(15,23,42,0.04), 0 12px 24px rgba(15,23,42,0.05)',
+        'card-hover': '0 0 0 1px rgba(15,23,42,0.05), 0 2px 4px rgba(15,23,42,0.04), 0 12px 20px rgba(15,23,42,0.08), 0 24px 48px rgba(15,23,42,0.10)',
+        'float': '0 8px 16px rgba(15,23,42,0.08), 0 24px 48px rgba(15,23,42,0.12)',
         'inset-soft': 'inset 0 1px 2px rgba(15,23,42,0.04)',
+        'nav-active': '0 2px 4px rgba(11,18,32,0.20), 0 8px 16px rgba(11,18,32,0.15)',
       },
       animation: {
         'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+        'fade-in': 'fadeIn 0.4s ease-out',
       },
       keyframes: {
         slideUp: {
           '0%': { opacity: 0, transform: 'translateY(8px)' },
           '100%': { opacity: 1, transform: 'translateY(0)' },
+        },
+        fadeIn: {
+          '0%': { opacity: 0 },
+          '100%': { opacity: 1 },
         },
       },
     },

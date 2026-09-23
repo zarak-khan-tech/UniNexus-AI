@@ -9,9 +9,10 @@ body {
   background-color: #f8fafc;
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background-image:
-    radial-gradient(ellipse at top left, rgba(74,100,131,0.06), transparent 50%),
-    radial-gradient(ellipse at bottom right, rgba(209,158,11,0.04), transparent 50%);
+    radial-gradient(ellipse 1200px 800px at top left, rgba(74,100,131,0.05), transparent 60%),
+    radial-gradient(ellipse 1000px 600px at bottom right, rgba(209,158,11,0.035), transparent 60%);
   background-attachment: fixed;
 }
 
@@ -21,3 +22,58 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
 :focus-visible { outline: 2px solid #4a6483; outline-offset: 2px; }
+
+/* ============================================================
+   PREMIUM INTERACTION UTILITIES
+   English: Reusable classes that give every card realistic depth + tactile hover.
+   Roman Urdu: Ye classes har card ko real depth aur hover feedback deti hain.
+   ============================================================ */
+
+.hover-lift {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 220ms ease;
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 1px rgba(15,23,42,0.05),
+              0 2px 4px rgba(15,23,42,0.04),
+              0 12px 20px rgba(15,23,42,0.08),
+              0 24px 48px rgba(15,23,42,0.10);
+  border-color: rgba(74,100,131,0.20);
+}
+
+.hover-press:active {
+  transform: translateY(-1px) scale(0.995);
+  transition: transform 90ms ease;
+}
+
+/* English: A soft gold-accented gradient used on premium highlights and badges. */
+/* Roman Urdu: Naram gold gradient jo premium highlights aur badges mein use hoti hai. */
+.gradient-gold {
+  background-image: linear-gradient(135deg, #f5d14b 0%, #eeb91f 50%, #d19e0b 100%);
+}
+
+/* English: A subtle top highlight that makes cards look slightly "lit" from above. */
+/* Roman Urdu: Halki roshni jo card ke upar se aati hai — isse card ubhra hua lagta hai. */
+.card-highlight {
+  position: relative;
+}
+.card-highlight::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 40%);
+  pointer-events: none;
+}
+
+/* English: A soft pattern used inside dark hero/CTA panels for depth. */
+/* Roman Urdu: Gehre panels ke andar halka pattern jo depth deta hai. */
+.ink-grid-pattern {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
