@@ -1,8 +1,23 @@
-﻿@import "tailwindcss";
+﻿@config "../tailwind.config.js";
+@import "tailwindcss";
+
+html, body, #root { height: 100%; }
 
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #0f172a; /* Dark academic slate */
-  color: #e2e8f0;
+  background-color: #f8fafc;
+  color: #0f172a;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(ellipse at top left, rgba(74,100,131,0.06), transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(209,158,11,0.04), transparent 50%);
+  background-attachment: fixed;
 }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+:focus-visible { outline: 2px solid #4a6483; outline-offset: 2px; }
