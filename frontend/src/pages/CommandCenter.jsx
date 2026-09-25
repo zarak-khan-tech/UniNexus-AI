@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import api from '../api/client';
 import AgentResult from '../components/AgentResult';
 
@@ -7,49 +7,134 @@ import AgentResult from '../components/AgentResult';
 // Roman Urdu: Har agent ka rang aur icon yahan define kiya hai.
 // =============================================================================
 const AGENT_META = {
-  AttendanceAgent: {
-    label: 'Attendance',
-    color: 'bg-blue-500',
-    lightBg: 'bg-blue-50',
-    text: 'text-blue-700',
-    border: 'border-blue-200',
-  },
-  PolicyAgent: {
-    label: 'Policy',
-    color: 'bg-amber-500',
-    lightBg: 'bg-amber-50',
-    text: 'text-amber-700',
-    border: 'border-amber-200',
-  },
-  RiskAgent: {
-    label: 'Risk',
-    color: 'bg-red-500',
-    lightBg: 'bg-red-50',
-    text: 'text-red-700',
-    border: 'border-red-200',
-  },
-  KnowledgeAgent: {
-    label: 'Knowledge',
-    color: 'bg-violet-500',
-    lightBg: 'bg-violet-50',
-    text: 'text-violet-700',
-    border: 'border-violet-200',
-  },
+  AttendanceAgent: { label: 'Attendance', color: 'bg-blue-500', lightBg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  PolicyAgent:     { label: 'Policy',     color: 'bg-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  RiskAgent:       { label: 'Risk',       color: 'bg-red-500', lightBg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  KnowledgeAgent:  { label: 'Knowledge',  color: 'bg-violet-500', lightBg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
 };
 
 // =============================================================================
-// ExecutionTimeline — the flagship visual flow
-// Roman Urdu: Ye platform ka sabse important visual hai — task se result tak ka safar.
+// ProviderSwitcher — clickable badge that opens a dropdown of LLM providers.
+// Roman Urdu: Ye badge click karne pe dropdown kholti hai jahan se LLM provider switch hota hai.
+// =============================================================================
+function ProviderSwitcher({ llmStatus, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const ref = useRef(null);
+
+  // English: Close dropdown when clicking outside.
+  // Roman Urdu: Bahar click karne pe dropdown band ho jaye.
+  useEffect(() => {
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const ready = llmStatus?.available && llmStatus?.model_ready;
+  const providers = llmStatus?.gateway?.providers || [];
+  const active = llmStatus?.gateway?.primary_provider || 'unknown';
+
+  const switchTo = async (name) => {
+    if (name === active) { setOpen(false); return; }
+    setSwitching(true);
+    try {
+      await api.post('/agents/llm/provider', { provider: name });
+      setOpen(false);
+      if (onChange) await onChange();
+    } catch (err) {
+      console.error('Failed to switch provider', err);
+    } finally {
+      setSwitching(false);
+    }
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-2 text-xs rounded-full px-3.5 py-2 shadow-card border-2 transition-all hover:shadow-card-hover ${
+          ready ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
+        }`}
+      >
+        <span className={`inline-block w-2 h-2 rounded-full ${ready ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+        <span className="font-semibold">
+          {ready ? `LLM: ${llmStatus.default_model}` : 'LLM: offline'}
+        </span>
+        <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-72 bg-white border border-ink-200 rounded-xl shadow-float z-30 overflow-hidden animate-slide-up">
+          <div className="px-4 py-2.5 border-b border-ink-100 bg-ink-50/60">
+            <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold">Active Provider</div>
+            <div className="text-sm font-semibold text-ink-900 mt-0.5 capitalize">{active}</div>
+          </div>
+          <div className="p-1.5">
+            {providers.length === 0 && (
+              <div className="p-3 text-xs text-ink-500">Loading providers…</div>
+            )}
+            {providers.map((p) => (
+              <button
+                key={p.name}
+                onClick={() => switchTo(p.name)}
+                disabled={switching || !p.available}
+                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between transition-colors ${
+                  p.name === active
+                    ? 'bg-ink-900 text-white cursor-default'
+                    : p.available
+                    ? 'hover:bg-ink-50 text-ink-900'
+                    : 'opacity-50 cursor-not-allowed text-ink-500'
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${
+                      p.available
+                        ? p.name === active ? 'bg-gold-400' : 'bg-emerald-500'
+                        : 'bg-red-500'
+                    }`}></span>
+                    <span className="text-sm font-semibold capitalize">{p.name}</span>
+                    {p.name === active && (
+                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/15 text-gold-300 font-bold">
+                        active
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-[11px] mt-0.5 truncate ${p.name === active ? 'text-ink-200' : 'text-ink-500'}`}>
+                    {p.model || 'unknown'}
+                  </div>
+                </div>
+                {switching && p.name !== active && (
+                  <svg className="w-4 h-4 animate-spin opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="px-4 py-2.5 border-t border-ink-100 bg-ink-50/40 text-[11px] text-ink-500">
+            Switch takes effect immediately. Saved to <span className="font-mono text-ink-700">.env</span>.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// =============================================================================
+// ExecutionTimeline — the flagship visual flow.
 // =============================================================================
 function ExecutionTimeline({ plan }) {
   if (!plan || plan.length === 0) return null;
 
   return (
     <div className="relative bg-gradient-to-br from-ink-950 via-ink-900 to-ink-950 rounded-2xl p-8 shadow-float overflow-hidden">
-      {/* Ambient glow */}
       <div className="absolute -top-32 right-0 w-96 h-96 rounded-full bg-gold-500/10 blur-3xl" />
       <div className="absolute -bottom-32 left-0 w-96 h-96 rounded-full bg-blue-500/10 blur-3xl" />
-      {/* Subtle grid */}
       <div className="absolute inset-0 ink-grid-pattern opacity-40" />
 
       <div className="relative z-10">
@@ -64,7 +149,6 @@ function ExecutionTimeline({ plan }) {
         </div>
 
         <div className="flex items-center gap-3 overflow-x-auto pb-3">
-          {/* Task node */}
           <div className="flex-shrink-0">
             <div className="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur border border-white/10 flex flex-col items-center justify-center gap-2">
               <svg className="w-6 h-6 text-ink-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +160,6 @@ function ExecutionTimeline({ plan }) {
 
           <div className="flex-shrink-0 w-10 h-0.5 bg-gradient-to-r from-white/10 to-gold-400/60 rounded-full" />
 
-          {/* Orchestrator — hero node */}
           <div className="flex-shrink-0">
             <div className="relative w-24 h-24 rounded-2xl gradient-gold flex flex-col items-center justify-center gap-2 shadow-[0_16px_40px_-12px_rgba(209,158,11,0.6)]">
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent" />
@@ -89,27 +172,23 @@ function ExecutionTimeline({ plan }) {
 
           <div className="flex-shrink-0 w-10 h-0.5 bg-gradient-to-r from-gold-400/60 to-white/10 rounded-full" />
 
-          {/* Agent nodes */}
           {plan.map((step, idx) => {
             const meta = AGENT_META[step.agent] || { label: step.agent, color: 'bg-ink-500' };
             return (
               <div key={step.step} className="flex items-center gap-3 flex-shrink-0">
                 <div className="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur border border-white/10 flex flex-col items-center justify-center gap-2 hover:bg-white/10 transition-colors">
-                  <div className={`w-2.5 h-2.5 rounded-full ${meta.color} shadow-[0_0_12px_currentColor]`} />
+                  <div className={`w-2.5 h-2.5 rounded-full ${meta.color}`} />
                   <span className="text-[10px] uppercase tracking-widest font-bold text-white text-center px-1 leading-tight">
                     {meta.label}
                   </span>
                 </div>
-                {idx < plan.length - 1 && (
-                  <div className="w-10 h-0.5 bg-white/10 rounded-full" />
-                )}
+                {idx < plan.length - 1 && <div className="w-10 h-0.5 bg-white/10 rounded-full" />}
               </div>
             );
           })}
 
           <div className="flex-shrink-0 w-10 h-0.5 bg-gradient-to-r from-white/10 to-emerald-400/60 rounded-full" />
 
-          {/* Result node */}
           <div className="flex-shrink-0">
             <div className="w-24 h-24 rounded-2xl bg-emerald-500/15 backdrop-blur border border-emerald-400/30 flex flex-col items-center justify-center gap-2">
               <svg className="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,10 +203,6 @@ function ExecutionTimeline({ plan }) {
   );
 }
 
-// =============================================================================
-// StatPill — small icon + label + value used in workflow summary bar
-// Roman Urdu: Workflow summary bar mein chhote stats ke liye component.
-// =============================================================================
 function StatPill({ icon, label, value, mono = false }) {
   return (
     <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
@@ -142,9 +217,6 @@ function StatPill({ icon, label, value, mono = false }) {
   );
 }
 
-// =============================================================================
-// Main component
-// =============================================================================
 export default function CommandCenter() {
   const [task, setTask] = useState('Show me students with attendance risk');
   const [loading, setLoading] = useState(false);
@@ -153,17 +225,16 @@ export default function CommandCenter() {
   const [showRaw, setShowRaw] = useState({});
   const [llmStatus, setLlmStatus] = useState(null);
 
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response = await api.get('/agents/llm/status');
-        setLlmStatus(response.data);
-      } catch (err) {
-        setLlmStatus({ available: false, reason: 'Could not reach backend' });
-      }
-    };
-    fetchStatus();
-  }, []);
+  const loadStatus = async () => {
+    try {
+      const response = await api.get('/agents/llm/status');
+      setLlmStatus(response.data);
+    } catch (err) {
+      setLlmStatus({ available: false, reason: 'Could not reach backend' });
+    }
+  };
+
+  useEffect(() => { loadStatus(); }, []);
 
   const handleRun = async () => {
     if (!task.trim()) return;
@@ -181,15 +252,10 @@ export default function CommandCenter() {
     }
   };
 
-  const toggleRaw = (idx) => {
-    setShowRaw((prev) => ({ ...prev, [idx]: !prev[idx] }));
-  };
-
-  const llmReady = llmStatus?.available && llmStatus?.model_ready;
+  const toggleRaw = (idx) => setShowRaw((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
   return (
     <div className="p-8 max-w-6xl mx-auto animate-fade-in">
-      {/* ==================== Hero Header ==================== */}
       <div className="relative bg-gradient-to-br from-white via-white to-ink-50/50 border border-ink-200 rounded-2xl p-8 mb-6 shadow-card overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-gold-100/40 blur-3xl" />
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
@@ -205,20 +271,10 @@ export default function CommandCenter() {
               Issue natural-language tasks. The Orchestrator plans, delegates, and executes across your agent ecosystem.
             </p>
           </div>
-          <div className={`inline-flex items-center gap-2 text-xs border-2 rounded-full px-4 py-2 font-bold shadow-card ${
-            llmReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'
-          }`}>
-            <span className={`inline-block w-2 h-2 rounded-full ${llmReady ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-            {llmReady
-              ? `LLM Online · ${llmStatus.default_model}`
-              : llmStatus?.available
-                ? 'LLM: model not installed'
-                : 'Fallback mode'}
-          </div>
+          <ProviderSwitcher llmStatus={llmStatus} onChange={loadStatus} />
         </div>
       </div>
 
-      {/* ==================== Task Input ==================== */}
       <div className="bg-white border border-ink-200 rounded-2xl p-6 mb-6 shadow-card">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-7 h-7 rounded-lg bg-ink-900 flex items-center justify-center">
@@ -266,15 +322,11 @@ export default function CommandCenter() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm font-medium">
-          {error}
-        </div>
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm font-medium">{error}</div>
       )}
 
-      {/* ==================== Results ==================== */}
       {result && (
         <div className="space-y-6">
-          {/* Workflow summary — status + stats bar */}
           <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
             <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-ink-50/60 to-white flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -292,42 +344,22 @@ export default function CommandCenter() {
                   </span>
                 )}
                 <span className={`text-xs px-3 py-1.5 rounded-full font-bold border-2 ${
-                  result.planning_source === 'llm'
-                    ? 'bg-violet-50 text-violet-700 border-violet-200'
-                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                  result.planning_source === 'llm' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-blue-50 text-blue-700 border-blue-200'
                 }`}>
                   {result.planning_source === 'llm' ? 'LLM planned' : 'rule-based'}
                 </span>
-                <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500 text-white font-bold">
-                  {result.status}
-                </span>
+                <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500 text-white font-bold">{result.status}</span>
               </div>
             </div>
-
             <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-              <StatPill
-                label="Execution ID"
-                value={`#${result.execution_id}`}
-                mono
-                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>}
-              />
-              <StatPill
-                label="Orchestrator"
-                value={result.orchestrator}
-                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /></svg>}
-              />
-              <StatPill
-                label="Request"
-                value={result.original_request}
-                icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>}
-              />
+              <StatPill label="Execution ID" value={`#${result.execution_id}`} mono icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" /></svg>} />
+              <StatPill label="Orchestrator" value={result.orchestrator} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /></svg>} />
+              <StatPill label="Request" value={result.original_request} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>} />
             </div>
           </div>
 
-          {/* Execution flow timeline — the flagship visual */}
           <ExecutionTimeline plan={result.execution_plan} />
 
-          {/* Execution Plan — cards with agent color identity */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 rounded-lg bg-ink-900 flex items-center justify-center">
@@ -339,17 +371,14 @@ export default function CommandCenter() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {result.execution_plan.map((step) => {
-                const meta = AGENT_META[step.agent] || { label: step.agent, lightBg: 'bg-ink-50', text: 'text-ink-700', border: 'border-ink-200' };
+                const meta = AGENT_META[step.agent] || { lightBg: 'bg-ink-50', text: 'text-ink-700', border: 'border-ink-200', color: 'bg-ink-500' };
                 return (
-                  <div
-                    key={step.step}
-                    className={`relative bg-white border-2 ${meta.border} rounded-xl p-5 shadow-card hover-lift transition-all overflow-hidden`}
-                  >
+                  <div key={step.step} className={`relative bg-white border-2 ${meta.border} rounded-xl p-5 shadow-card hover-lift transition-all overflow-hidden`}>
                     <div className="flex items-center justify-between mb-3">
                       <span className={`inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${meta.lightBg} ${meta.text}`}>
                         Step {step.step}
                       </span>
-                      <div className={`w-2 h-2 rounded-full ${meta.color || 'bg-ink-500'}`}></div>
+                      <div className={`w-2 h-2 rounded-full ${meta.color}`}></div>
                     </div>
                     <div className="font-bold text-ink-900 text-base mb-1">{step.agent}</div>
                     <div className="text-xs text-ink-500 leading-relaxed">{step.action}</div>
@@ -359,7 +388,6 @@ export default function CommandCenter() {
             </div>
           </div>
 
-          {/* Agent Results — colored identity cards */}
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 rounded-lg bg-ink-900 flex items-center justify-center">
@@ -372,7 +400,7 @@ export default function CommandCenter() {
 
             <div className="space-y-4">
               {result.execution_results.map((step, idx) => {
-                const meta = AGENT_META[step.agent] || { label: step.agent, color: 'bg-ink-500', lightBg: 'bg-ink-50', text: 'text-ink-700' };
+                const meta = AGENT_META[step.agent] || { color: 'bg-ink-500', lightBg: 'bg-ink-50', text: 'text-ink-700' };
                 return (
                   <div key={step.step} className="bg-white border border-ink-200 rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover transition-shadow">
                     <div className={`relative px-6 py-3.5 border-b border-ink-100 flex items-center justify-between ${meta.lightBg}`}>
@@ -408,7 +436,6 @@ export default function CommandCenter() {
         </div>
       )}
 
-      {/* Empty state */}
       {!result && !loading && !error && (
         <div className="relative bg-gradient-to-br from-white to-ink-50/50 border-2 border-dashed border-ink-200 rounded-2xl p-16 text-center overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-gold-100/30 blur-3xl" />

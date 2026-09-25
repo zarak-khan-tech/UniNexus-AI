@@ -1,44 +1,89 @@
 ﻿"""
-English: LLM Gateway — unified interface with primary + fallback providers.
-Roman Urdu: LLM Gateway — ek unified interface jahan primary aur fallback providers hain.
+English: LLM Gateway — unified interface with runtime provider switching.
+Roman Urdu: LLM Gateway — runtime provider switching ke saath unified interface.
 """
 import os
 import logging
-from typing import Optional
+from typing import Optional, Dict
 
-# English: Load .env into os.environ so os.getenv() works in providers.
-# Roman Urdu: .env ko os.environ mein load karo taake providers ka os.getenv() kaam kare.
 from dotenv import load_dotenv
 load_dotenv()
 
 from backend.app.core.llm_gateway.base import LLMResponse
 from backend.app.core.llm_gateway.ollama_provider import OllamaProvider
 from backend.app.core.llm_gateway.gemini_provider import GeminiProvider
+from backend.app.core.llm_gateway.groq_provider import GroqProvider
 
 logger = logging.getLogger(__name__)
 
 
 class LLMGateway:
     """
-    English: Picks a primary provider from .env, with automatic fallback.
-    Roman Urdu: .env se primary provider chunta hai, aur automatically fallback karta hai.
+    English: Manages providers, allows runtime switching, saves choice to .env.
+    Roman Urdu: Providers manage karta hai, runtime switching allow karta hai, choice .env mein save karta hai.
     """
 
     def __init__(self):
-        # English: Which provider to try first — controlled via .env LLM_PROVIDER.
-        # Roman Urdu: Pehle konsa provider try karna hai — .env mein LLM_PROVIDER se control.
-        self.primary_name = os.getenv("LLM_PROVIDER", "gemini").lower().strip()
+        self.primary_name = os.getenv("LLM_PROVIDER", "groq").lower().strip()
 
         self.providers = {
+            "groq": GroqProvider(),
             "gemini": GeminiProvider(),
             "ollama": OllamaProvider(),
         }
 
+    def list_providers(self):
+        """
+        English: Return all providers with their status — used by frontend dropdown.
+        Roman Urdu: Sab providers ka status return karo — frontend dropdown ke liye.
+        """
+        out = []
+        for name, p in self.providers.items():
+            st = p.status()
+            out.append({
+                "name": name,
+                "model": st.get("model"),
+                "available": st.get("available", False),
+                "is_primary": name == self.primary_name,
+                "details": st,
+            })
+        return out
+
+    def set_primary(self, name: str) -> bool:
+        """
+        English: Switch primary provider at runtime AND persist to .env.
+        Roman Urdu: Primary provider runtime pe switch karo AUR .env mein save karo.
+        """
+        name = (name or "").lower().strip()
+        if name not in self.providers:
+            return False
+
+        self.primary_name = name
+        self._persist_to_env("LLM_PROVIDER", name)
+        logger.info(f"LLM provider switched to {name}")
+        return True
+
+    @staticmethod
+    def _persist_to_env(key: str, value: str):
+        # English: Upsert into .env so choice survives backend restart.
+        # Roman Urdu: .env mein update karo taake backend restart pe choice bachi rahe.
+        env_path = ".env"
+        lines = []
+        found = False
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f.read().splitlines():
+                    if line.startswith(f"{key}="):
+                        lines.append(f"{key}={value}")
+                        found = True
+                    else:
+                        lines.append(line)
+        if not found:
+            lines.append(f"{key}={value}")
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
+
     def _order(self):
-        """
-        English: Primary first, then all others as fallbacks.
-        Roman Urdu: Pehle primary, phir baaki sab fallback ke taur pe.
-        """
         order = [self.primary_name]
         for name in self.providers:
             if name != self.primary_name:
@@ -46,10 +91,6 @@ class LLMGateway:
         return order
 
     def generate(self, prompt: str, json_mode: bool = False) -> LLMResponse:
-        """
-        English: Try each provider in order; return the first successful response.
-        Roman Urdu: Har provider ko order mein try karo; pehla successful response return karo.
-        """
         errors = []
         for name in self._order():
             provider = self.providers.get(name)
@@ -68,25 +109,14 @@ class LLMGateway:
         )
 
     def status(self):
-        """
-        English: Return a rich status for the /agents/llm/status endpoint.
-        Roman Urdu: /agents/llm/status endpoint ke liye ek rich status return karo.
-        """
         primary = self.providers.get(self.primary_name)
         primary_status = primary.status() if primary else {"available": False}
-
-        fallbacks = {}
-        for name, p in self.providers.items():
-            if name != self.primary_name:
-                fallbacks[name] = p.status()
-
         return {
             "primary_provider": self.primary_name,
             "primary_available": primary_status.get("available", False),
             "primary_model": primary_status.get("model"),
             "primary_status": primary_status,
-            "fallback_providers": fallbacks,
-            "ollama_status": self.providers["ollama"].status(),
+            "providers": self.list_providers(),
         }
 
 
