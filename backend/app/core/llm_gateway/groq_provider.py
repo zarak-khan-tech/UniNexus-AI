@@ -3,7 +3,6 @@ English: Groq provider — uses Groq's free tier for fast inference of open mode
 Roman Urdu: Groq provider — Groq ke free tier ko use karta hai tez inference ke liye.
 """
 import os
-import json
 import logging
 from typing import Dict, Any, Optional
 
@@ -21,13 +20,14 @@ except ImportError:
 class GroqProvider(LLMProvider):
     name = "groq"
 
-    # English: Preferred model (fast + smart). Fallback if unavailable.
-    # Roman Urdu: Preferred model (tez + smart). Agar na ho to fallback.
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    # English: Preferred model — gpt-oss-120b is the strongest available on Groq today.
+    # Roman Urdu: Preferred model — gpt-oss-120b aaj Groq pe sab se strong hai.
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
     FALLBACK_MODELS = [
-        "llama-3.3-70b-versatile",
-        "llama-3.1-70b-versatile",
-        "llama-3.1-8b-instant",
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b",
+        "openai/gpt-oss-20b",
+        "allam-2-7b",
     ]
 
     def __init__(self, model: str = None, api_key: str = None):
@@ -53,8 +53,6 @@ class GroqProvider(LLMProvider):
                 success=False, error="GROQ_API_KEY not set"
             )
 
-        # English: Try each model in order; return first successful response.
-        # Roman Urdu: Har model ko order mein try karo; pehla successful return karo.
         models = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
         last_error: Optional[str] = None
 
