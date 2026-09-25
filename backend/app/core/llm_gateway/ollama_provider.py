@@ -10,8 +10,6 @@ from backend.app.core.llm_gateway.base import LLMProvider, LLMResponse
 
 logger = logging.getLogger(__name__)
 
-# English: Try importing ollama. If unavailable, mark it gracefully.
-# Roman Urdu: Ollama import karne ki koshish. Agar na ho, gracefully mark karo.
 try:
     import ollama
     OLLAMA_AVAILABLE = True
@@ -23,9 +21,9 @@ class OllamaProvider(LLMProvider):
     name = "ollama"
 
     def __init__(self, model: str = None):
-        # English: Read model from env, default to a reasonable local model.
-        # Roman Urdu: Model env se parho, default ek theek local model rakho.
-        self.model = model or os.getenv("OLLAMA_MODEL", "llama3.2:latest")
+        # English: Default to the smaller 1B model to reduce RAM pressure on 8GB machines.
+        # Roman Urdu: Default chhota 1B model rakha hai taake 8GB machines pe RAM pressure kam ho.
+        self.model = model or os.getenv("OLLAMA_MODEL", "llama3.2:1b")
 
     def generate(self, prompt: str, json_mode: bool = False) -> LLMResponse:
         if not OLLAMA_AVAILABLE:
@@ -37,7 +35,7 @@ class OllamaProvider(LLMProvider):
             kwargs = {
                 "model": self.model,
                 "prompt": prompt,
-                "keep_alive": "30m",
+                "keep_alive": "5m",
                 "options": {"temperature": 0.1},
             }
             if json_mode:
