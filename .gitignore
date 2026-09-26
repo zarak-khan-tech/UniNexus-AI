@@ -28,3 +28,12 @@ Thumbs.db
 *.log
 *.sqlite3
 *.db
+
+# Local test helpers (may contain keys)
+set_groq_key*.py
+check_groq_models.py
+update_groq_model.py
+rotate_groq_key.py
+test_gemini.py
+test_plan*.py
+check_gateway.py
