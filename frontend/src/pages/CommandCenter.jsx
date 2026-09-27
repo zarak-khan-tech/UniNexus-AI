@@ -196,7 +196,7 @@ export default function CommandCenter() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto animate-fade-in">
-      <div className="relative bg-gradient-to-br from-white via-white to-ink-50/50 border border-ink-200 rounded-2xl p-8 mb-6 shadow-card overflow-hidden">
+      <div className="relative bg-gradient-to-br from-white via-white to-ink-50/50 border border-ink-200 rounded-2xl p-8 mb-6 shadow-card">
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-gold-100/40 blur-3xl" />
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
