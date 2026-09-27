@@ -7,7 +7,6 @@ from backend.app.models.course import Course
 from backend.app.models.document import Document
 from typing import Dict, Any
 
-
 # =============================================================================
 # AttendanceAgent — uses attendance_query tool
 # =============================================================================
@@ -19,8 +18,6 @@ class AttendanceAgent(BaseAgent):
         )
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        # English: Default threshold; if the request mentions a number like "80%", use it.
-        # Roman Urdu: Default threshold; agar request mein 80% jaisa number ho to wahi use karo.
         import re
         threshold = 75.0
         request = task.get('request', '').lower()
@@ -32,7 +29,6 @@ class AttendanceAgent(BaseAgent):
                 pass
 
         result = tool_registry.call('attendance_query', threshold=threshold)
-
         if not result.success:
             return {
                 'status': 'error',
@@ -41,8 +37,6 @@ class AttendanceAgent(BaseAgent):
                 'error': result.error,
             }
 
-        # English: Shape output for frontend — same as before (course_code → course).
-        # Roman Urdu: Frontend ke liye output shape banao — pehle jaisa hi (course_code → course).
         rows = result.data or []
         return {
             'status': 'success',
@@ -62,9 +56,8 @@ class AttendanceAgent(BaseAgent):
             ],
         }
 
-
 # =============================================================================
-# PolicyAgent — static thresholds for now (will read from documents later)
+# PolicyAgent — static thresholds (will read from documents later)
 # =============================================================================
 class PolicyAgent(BaseAgent):
     def __init__(self):
@@ -78,7 +71,6 @@ class PolicyAgent(BaseAgent):
             'rule': 'Students below 75% attendance require intervention.',
         }
 
-
 # =============================================================================
 # RiskAgent — uses list_enrollments tool
 # =============================================================================
@@ -91,7 +83,6 @@ class RiskAgent(BaseAgent):
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         result = tool_registry.call('list_enrollments', limit=500)
-
         if not result.success:
             return {
                 'status': 'error',
@@ -100,20 +91,16 @@ class RiskAgent(BaseAgent):
                 'error': result.error,
             }
 
-        # English: Same deterministic risk logic, but now fed by the tool.
-        # Roman Urdu: Wahi deterministic risk logic, bas ab tool se data aata hai.
         risk_assessments = []
         for row in result.data or []:
             attendance = row.get('attendance_percentage', 100) or 0
             grade = row.get('grade') or ''
-
             if attendance < 60 or grade in ('D', 'F'):
                 level = 'High'
             elif attendance < 75 or grade == 'C':
                 level = 'Medium'
             else:
                 level = 'Low'
-
             if level in ('High', 'Medium'):
                 risk_assessments.append({
                     'student_id': row['student_id'],
@@ -130,45 +117,44 @@ class RiskAgent(BaseAgent):
             'at_risk_students': risk_assessments,
         }
 
-
 # =============================================================================
-# KnowledgeAgent — unchanged for now (uses direct DB, will move to RAG later)
+# KnowledgeAgent — NOW uses semantic_search tool (vector store backed)
 # =============================================================================
 class KnowledgeAgent(BaseAgent):
     def __init__(self):
         super().__init__(
             name='KnowledgeAgent',
-            description='Retrieves university policies and documents using keyword search.'
+            description='Retrieves university documents via semantic vector search (RAG).'
         )
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        db = SessionLocal()
-        try:
-            query = task.get('request', '')
-            words = [w for w in query.split() if len(w) > 3]
+        # English: The user's natural-language request IS the semantic query.
+        # Roman Urdu: User ki natural-language request hi semantic query hai.
+        query = (task.get('request') or '').strip()
 
-            q = db.query(Document)
-            if words:
-                from sqlalchemy import or_
-                filters = [Document.content.ilike(f'%{w}%') | Document.title.ilike(f'%{w}%') for w in words]
-                q = q.filter(or_(*filters))
+        result = tool_registry.call('semantic_search', query=query, top_k=3)
 
-            docs = q.limit(3).all()
-
-            results = []
-            for doc in docs:
-                results.append({
-                    'title': doc.title,
-                    'category': doc.category,
-                    'content_preview': doc.content[:200] + '...' if len(doc.content) > 200 else doc.content,
-                })
-
+        if not result.success:
             return {
-                'status': 'success',
+                'status': 'error',
                 'agent': self.name,
-                'tool_used': 'direct_db_query',  # to be replaced with RAG tool later
-                'total_matches': len(results),
-                'documents': results,
+                'tool_used': 'semantic_search',
+                'error': result.error,
             }
-        finally:
-            db.close()
+
+        docs = result.data or []
+        return {
+            'status': 'success',
+            'agent': self.name,
+            'tool_used': 'semantic_search',
+            'total_matches': len(docs),
+            'documents': [
+                {
+                    'title': d['title'],
+                    'category': d['category'],
+                    'content_preview': d['content_preview'],
+                    'similarity': d.get('similarity'),
+                }
+                for d in docs
+            ],
+        }
