@@ -37,3 +37,6 @@ rotate_groq_key.py
 test_gemini.py
 test_plan*.py
 check_gateway.py
+
+# Vector store (regenerate via ingest_documents.py)
+.vector_store.pkl
