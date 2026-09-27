@@ -7,11 +7,12 @@ from backend.app.tools.academic import (
     StudentLookupTool,
     ListStudentsTool,
     AttendanceQueryTool,
+    ListEnrollmentsTool,
 )
 
 # English: Idempotent registration — safe if imported multiple times.
 # Roman Urdu: Idempotent registration — bar bar import hone pe bhi safe.
-for _tool_cls in (StudentLookupTool, ListStudentsTool, AttendanceQueryTool):
+for _tool_cls in (StudentLookupTool, ListStudentsTool, AttendanceQueryTool, ListEnrollmentsTool):
     tool_registry.register(_tool_cls())
 
 __all__ = ['tool_registry']

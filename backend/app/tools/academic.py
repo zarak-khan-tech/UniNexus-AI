@@ -140,3 +140,41 @@ class AttendanceQueryTool(BaseTool):
             )
         finally:
             db.close()
+
+
+class ListEnrollmentsTool(BaseTool):
+    name = 'list_enrollments'
+    description = 'List all enrollments (student + course + attendance + grade). Used for risk analysis.'
+    permission = PermissionLevel.READ
+    input_schema = {
+        'type': 'object',
+        'properties': {
+            'limit': {'type': 'integer', 'description': 'Max results (default 500)'},
+        },
+    }
+
+    def execute(self, limit: int = 500, **kwargs) -> ToolResult:
+        db = SessionLocal()
+        try:
+            rows = (
+                db.query(Enrollment, Student)
+                .join(Student, Enrollment.student_id == Student.id)
+                .limit(limit)
+                .all()
+            )
+            return ToolResult(
+                success=True,
+                data=[
+                    {
+                        'student_id': s.id,
+                        'student_number': s.student_number,
+                        'name': f'{s.first_name} {s.last_name}',
+                        'attendance_percentage': e.attendance_percentage,
+                        'grade': e.grade,
+                    }
+                    for e, s in rows
+                ],
+                metadata={'count': len(rows)},
+            )
+        finally:
+            db.close()
