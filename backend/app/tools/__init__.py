@@ -10,15 +10,12 @@ from backend.app.tools.academic import (
     ListEnrollmentsTool,
 )
 from backend.app.tools.knowledge import SemanticSearchTool
+from backend.app.tools.write import UpdateStudentGradeTool, SendStudentNotificationTool
 
-# English: Idempotent registration — safe if imported multiple times.
-# Roman Urdu: Idempotent registration — bar bar import hone pe bhi safe.
 for _tool_cls in (
-    StudentLookupTool,
-    ListStudentsTool,
-    AttendanceQueryTool,
-    ListEnrollmentsTool,
+    StudentLookupTool, ListStudentsTool, AttendanceQueryTool, ListEnrollmentsTool,
     SemanticSearchTool,
+    UpdateStudentGradeTool, SendStudentNotificationTool,
 ):
     tool_registry.register(_tool_cls())
 
