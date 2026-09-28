@@ -3,7 +3,7 @@ English: Academic read-only tools with explicit trigger descriptions.
 Roman Urdu: Academic read-only tools, explicit trigger descriptions ke saath.
 """
 from typing import Optional
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from backend.app.tools.base import BaseTool, ToolResult, PermissionLevel
 from backend.app.core.database import SessionLocal
 from backend.app.models.student import Student
@@ -14,7 +14,7 @@ from backend.app.models.course import Course
 class StudentLookupTool(BaseTool):
     name = 'student_lookup'
     description = (
-        'Find students by student number, email, or name substring. '
+        'Find students by student number, email, or FULL NAME (first and last). '
         'USE THIS whenever the user asks "find student X", "who is S101", '
         '"tell me about student <name>", or any request to look up an '
         'individual student record.'
@@ -23,7 +23,7 @@ class StudentLookupTool(BaseTool):
     input_schema = {
         'type': 'object',
         'properties': {
-            'query': {'type': 'string', 'description': 'Student number, email, or name substring'},
+            'query': {'type': 'string', 'description': 'Student number, email, or full name like "Ali Khan"'},
             'limit': {'type': 'integer', 'description': 'Max results (default 20)'},
         },
         'required': ['query'],
@@ -34,19 +34,43 @@ class StudentLookupTool(BaseTool):
             return ToolResult(success=False, error='query parameter is required')
         db = SessionLocal()
         try:
-            q = query.strip().lower()
+            q = query.strip()
             like = f'%{q}%'
-            matches = (
-                db.query(Student)
-                .filter(or_(
-                    Student.student_number.ilike(like),
-                    Student.email.ilike(like),
-                    Student.first_name.ilike(like),
-                    Student.last_name.ilike(like),
-                ))
-                .limit(limit)
-                .all()
+            tokens = [t for t in q.split() if t]
+
+            # English: Try full-string match first (works for numbers/emails).
+            # Roman Urdu: Pehle full-string match (numbers/emails ke liye).
+            base_filter = or_(
+                Student.student_number.ilike(like),
+                Student.email.ilike(like),
+                Student.first_name.ilike(like),
+                Student.last_name.ilike(like),
             )
+
+            # English: If query has multiple words, also try token-wise match
+            # across first_name AND last_name.
+            # Roman Urdu: Agar query mein multiple words hain to first_name aur
+            # last_name pe token-wise match bhi try karo.
+            if len(tokens) >= 2:
+                token_filters = [
+                    or_(
+                        Student.first_name.ilike(f'%{t}%'),
+                        Student.last_name.ilike(f'%{t}%'),
+                        Student.student_number.ilike(f'%{t}%'),
+                        Student.email.ilike(f'%{t}%'),
+                    )
+                    for t in tokens
+                ]
+                full_filter = and_(*token_filters)
+                matches = (
+                    db.query(Student)
+                    .filter(or_(base_filter, full_filter))
+                    .limit(limit)
+                    .all()
+                )
+            else:
+                matches = db.query(Student).filter(base_filter).limit(limit).all()
+
             return ToolResult(
                 success=True,
                 data=[
@@ -106,10 +130,8 @@ class AttendanceQueryTool(BaseTool):
         'ALWAYS USE THIS whenever the user asks: '
         '"show me students with low attendance", "which students have poor attendance", '
         '"list students below 75%", "who is not attending class", '
-        '"find students with attendance issues", or ANY request that needs actual '
-        'student attendance rows from the database. '
-        'Returns real students with their attendance percentages per course. '
-        'DO NOT answer this kind of question from memory — always call this tool.'
+        '"find students with attendance issues". '
+        'Returns real students with their attendance percentages per course.'
     )
     permission = PermissionLevel.READ
     input_schema = {
