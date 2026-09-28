@@ -9,9 +9,10 @@ const AGENT_META = {
   KnowledgeAgent: { label: 'Knowledge', color: 'bg-violet-500', lightBg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
 };
 
-// =============================================================================
-// ProviderSwitcher (unchanged)
-// =============================================================================
+// English: localStorage key for persisting reasoning conversation across refresh.
+// Roman Urdu: Reasoning conversation ko refresh ke baad bachane ke liye localStorage key.
+const STORAGE_KEY = 'uninexus_reasoning_conversation';
+
 function ProviderSwitcher({ llmStatus, onChange }) {
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -70,9 +71,6 @@ function ProviderSwitcher({ llmStatus, onChange }) {
   );
 }
 
-// =============================================================================
-// ModeToggle (unchanged)
-// =============================================================================
 function ModeToggle({ mode, onChange }) {
   const modes = [
     { id: 'workflow', label: 'Agent Workflow', sub: 'Plan → Delegate', icon: (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /></svg>) },
@@ -94,9 +92,6 @@ function ModeToggle({ mode, onChange }) {
   );
 }
 
-// =============================================================================
-// ExecutionTimeline (unchanged)
-// =============================================================================
 function ExecutionTimeline({ plan }) {
   if (!plan || plan.length === 0) return null;
   return (
@@ -152,9 +147,6 @@ function ExecutionTimeline({ plan }) {
   );
 }
 
-// =============================================================================
-// ReasoningTrace (unchanged)
-// =============================================================================
 function ReasoningTrace({ toolCalls, iterations }) {
   if (!toolCalls || toolCalls.length === 0) {
     return (
@@ -217,10 +209,7 @@ function ReasoningTrace({ toolCalls, iterations }) {
   );
 }
 
-// =============================================================================
-// ChatMessage — one turn in the reasoning conversation
-// =============================================================================
-function ChatMessage({ turn, onToggleRaw, showRaw }) {
+function ChatMessage({ turn }) {
   if (turn.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -258,9 +247,29 @@ function ChatMessage({ turn, onToggleRaw, showRaw }) {
   );
 }
 
-// =============================================================================
-// Main component
-// =============================================================================
+// English: Load conversation from localStorage (survives refresh).
+// Roman Urdu: localStorage se conversation load karo (refresh ke baad bachi rahe).
+function loadConversation() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// English: Save conversation to localStorage.
+// Roman Urdu: Conversation ko localStorage mein save karo.
+function saveConversation(conversation) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversation));
+  } catch (e) {
+    console.error('Failed to save conversation', e);
+  }
+}
+
 export default function CommandCenter() {
   const [mode, setMode] = useState('reasoning');
   const [task, setTask] = useState('');
@@ -268,9 +277,9 @@ export default function CommandCenter() {
   const [error, setError] = useState(null);
   const [llmStatus, setLlmStatus] = useState(null);
 
-  // Reasoning mode: full conversation
-  const [conversation, setConversation] = useState([]);
-  // Workflow mode: last result only
+  // English: Initialize from localStorage so the chat survives refresh.
+  // Roman Urdu: localStorage se initialize karo taake refresh ke baad chat rahe.
+  const [conversation, setConversation] = useState(loadConversation);
   const [workflowResult, setWorkflowResult] = useState(null);
   const [showRaw, setShowRaw] = useState({});
 
@@ -286,9 +295,15 @@ export default function CommandCenter() {
   };
   useEffect(() => { loadStatus(); }, []);
 
+  // English: Persist conversation to localStorage on every change.
+  // Roman Urdu: Har change pe conversation localStorage mein save karo.
+  useEffect(() => {
+    saveConversation(conversation);
+  }, [conversation]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [conversation]);
+  }, [conversation, loading]);
 
   const handleRun = async () => {
     if (!task.trim()) return;
@@ -333,16 +348,15 @@ export default function CommandCenter() {
 
   const clearConversation = () => {
     setConversation([]);
+    localStorage.removeItem(STORAGE_KEY);
     setError(null);
   };
 
   const toggleRaw = (idx) => setShowRaw((prev) => ({ ...prev, [idx]: !prev[idx] }));
-
   const isReasoning = mode === 'reasoning';
 
   return (
     <div className="p-8 max-w-6xl mx-auto animate-fade-in">
-      {/* Header */}
       <div className="relative bg-gradient-to-br from-white via-white to-ink-50/50 border border-ink-200 rounded-2xl p-8 mb-6 shadow-card">
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-gold-100/40 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
@@ -353,14 +367,13 @@ export default function CommandCenter() {
             </div>
             <h1 className="font-display text-4xl font-bold text-ink-900 mb-2 tracking-tight">AI Command Center</h1>
             <p className="text-ink-500 text-[15px] leading-relaxed">
-              Choose between deterministic agent workflows and real LLM reasoning with conversation memory.
+              Deterministic agent workflows and real LLM reasoning with persistent conversation memory.
             </p>
           </div>
           <ProviderSwitcher llmStatus={llmStatus} onChange={loadStatus} />
         </div>
       </div>
 
-      {/* Mode toggle + clear button */}
       <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
         <ModeToggle mode={mode} onChange={(m) => { setMode(m); setError(null); setWorkflowResult(null); }} />
         {isReasoning && conversation.length > 0 && (
@@ -372,7 +385,6 @@ export default function CommandCenter() {
         )}
       </div>
 
-      {/* Input */}
       <div className="bg-white border border-ink-200 rounded-2xl p-6 mb-6 shadow-card">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-7 h-7 rounded-lg bg-ink-900 flex items-center justify-center">
@@ -418,11 +430,10 @@ export default function CommandCenter() {
 
       {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm font-medium">{error}</div>}
 
-      {/* REASONING MODE — Chat view */}
       {isReasoning && conversation.length > 0 && (
         <div ref={scrollRef} className="space-y-5">
           {conversation.map((turn, idx) => (
-            <ChatMessage key={idx} turn={turn} onToggleRaw={toggleRaw} showRaw={showRaw} />
+            <ChatMessage key={idx} turn={turn} />
           ))}
           {loading && (
             <div className="flex justify-start">
@@ -437,7 +448,6 @@ export default function CommandCenter() {
         </div>
       )}
 
-      {/* WORKFLOW MODE — legacy view */}
       {!isReasoning && workflowResult && (
         <div className="space-y-6">
           <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
@@ -508,13 +518,8 @@ export default function CommandCenter() {
 
           {workflowResult.mode === 'direct_answer' && workflowResult.direct_answer && (
             <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
-              <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-violet-50/60 to-white flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                  </div>
-                  <h2 className="font-display text-lg font-bold text-ink-900">Direct Answer</h2>
-                </div>
+              <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-violet-50/60 to-white">
+                <h2 className="font-display text-lg font-bold text-ink-900">Direct Answer</h2>
               </div>
               <div className="p-6">
                 <p className="text-[15px] text-ink-800 leading-relaxed whitespace-pre-wrap">{workflowResult.direct_answer}</p>
@@ -524,7 +529,6 @@ export default function CommandCenter() {
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && !error && (
         (isReasoning && conversation.length === 0) ||
         (!isReasoning && !workflowResult)
@@ -537,7 +541,7 @@ export default function CommandCenter() {
             </div>
             <div className="font-display text-xl font-bold text-ink-900 mb-2">Ready when you are</div>
             <div className="text-sm text-ink-500 max-w-md mx-auto">
-              {isReasoning ? 'Start a conversation. Every turn is remembered, so you can ask follow-up questions like "which of them might fail?".' : 'Enter a task and click "Run Agents".'}
+              {isReasoning ? 'Start a conversation. Every turn is remembered (even after refresh), so follow-ups work naturally.' : 'Enter a task and click "Run Agents".'}
             </div>
           </div>
         </div>
