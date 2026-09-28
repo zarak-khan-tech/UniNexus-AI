@@ -2,8 +2,6 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
 
-// English: Navigation structure — grouped by purpose.
-// Roman Urdu: Navigation structure — purpose ke hisaab se grouped.
 const NAV_GROUPS = [
   {
     label: 'Overview',
@@ -19,6 +17,7 @@ const NAV_GROUPS = [
       { name: 'Agents', path: '/agents' },
       { name: 'Tools', path: '/tools' },
       { name: 'Approvals', path: '/approvals' },
+      { name: 'Workflows', path: '/workflows', badge: 'soon' },
     ],
   },
   {
@@ -32,6 +31,7 @@ const NAV_GROUPS = [
   {
     label: 'Operations',
     items: [
+      { name: 'Notifications', path: '/notifications', badge: 'soon' },
       { name: 'Audit Logs', path: '/audit' },
     ],
   },
@@ -72,9 +72,7 @@ export default function Layout({ children }) {
       <aside className="hidden md:flex w-64 flex-col border-r border-ink-100 bg-white">
         <div className="px-5 py-5 border-b border-ink-100">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center font-display font-bold text-ink-950">
-              U
-            </div>
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center font-display font-bold text-ink-950">U</div>
             <div>
               <div className="font-display font-bold text-[15px] tracking-tight text-ink-900 leading-tight">UniNexus AI</div>
               <div className="text-[10px] text-ink-400 tracking-widest uppercase">Academic Intelligence</div>
@@ -84,24 +82,28 @@ export default function Layout({ children }) {
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
           {NAV_GROUPS.map((group) => (
             <div key={group.label}>
-              <div className="text-[10px] font-semibold uppercase tracking-widest text-ink-400 px-3 mb-2">
-                {group.label}
-              </div>
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-ink-400 px-3 mb-2">{group.label}</div>
               <div className="space-y-0.5">
                 {group.items.map((item) => (
                   <NavLink
                     key={item.path}
-                    to={item.path}
+                    to={item.badge === 'soon' ? '#' : item.path}
                     end={item.path === '/'}
+                    onClick={(e) => { if (item.badge === 'soon') e.preventDefault(); }}
                     className={({ isActive }) =>
                       `group flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                        isActive
+                        item.badge === 'soon'
+                          ? 'text-ink-400 cursor-not-allowed'
+                          : isActive
                           ? 'bg-ink-900 text-white font-medium'
                           : 'text-ink-700 hover:bg-ink-50'
                       }`
                     }
                   >
                     <span>{item.name}</span>
+                    {item.badge === 'soon' && (
+                      <span className="text-[10px] uppercase tracking-wider text-ink-400 border border-ink-200 rounded px-1.5 py-0.5">soon</span>
+                    )}
                   </NavLink>
                 ))}
               </div>
@@ -110,18 +112,13 @@ export default function Layout({ children }) {
         </nav>
         <div className="border-t border-ink-100 p-3">
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-ink-50 transition-colors">
-            <div className="w-9 h-9 rounded-full bg-ink-900 text-gold-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
-              {getInitials(user?.email)}
-            </div>
+            <div className="w-9 h-9 rounded-full bg-ink-900 text-gold-300 flex items-center justify-center text-xs font-bold flex-shrink-0">{getInitials(user?.email)}</div>
             <div className="min-w-0 flex-1">
               <div className="text-xs font-medium text-ink-900 truncate">{user ? user.email : 'Loading…'}</div>
               <div className="text-[10px] uppercase tracking-wider text-ink-400">{user ? user.role : '—'}</div>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full mt-1 text-xs text-ink-500 hover:text-ink-900 px-3 py-2 rounded-md hover:bg-ink-50 transition-colors text-left"
-          >
+          <button onClick={handleLogout} className="w-full mt-1 text-xs text-ink-500 hover:text-ink-900 px-3 py-2 rounded-md hover:bg-ink-50 transition-colors text-left">
             Sign out
           </button>
         </div>
@@ -141,13 +138,9 @@ export default function Layout({ children }) {
             </div>
             <div className="flex items-center gap-3">
               <button className="relative p-2 rounded-lg hover:bg-ink-50 transition-colors" title="Notifications (coming soon)">
-                <svg className="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
+                <svg className="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
               </button>
-              <button onClick={handleLogout} className="text-sm text-ink-600 hover:text-ink-900 px-3 py-1.5 rounded-lg hover:bg-ink-50 transition-colors">
-                Sign out
-              </button>
+              <button onClick={handleLogout} className="text-sm text-ink-600 hover:text-ink-900 px-3 py-1.5 rounded-lg hover:bg-ink-50 transition-colors">Sign out</button>
             </div>
           </div>
         </header>
