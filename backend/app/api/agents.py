@@ -4,6 +4,7 @@ Roman Urdu: Agents, reasoning, aur LLM provider management ke API routes.
 """
 import json
 import time
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -19,7 +20,6 @@ from backend.app.core.reasoning import reason as reasoning_loop
 from backend.app.models.user import User
 from backend.app.models.agent_execution import AgentExecution
 
-# Register agents globally
 registry.register(AttendanceAgent())
 registry.register(PolicyAgent())
 registry.register(RiskAgent())
@@ -28,8 +28,18 @@ registry.register(KnowledgeAgent())
 router = APIRouter(prefix='/agents', tags=['AI Agents'])
 
 
+class HistoryTurn(BaseModel):
+    role: str
+    content: str
+
+
 class TaskRequest(BaseModel):
     request: str
+
+
+class ReasoningRequest(BaseModel):
+    request: str
+    history: Optional[List[HistoryTurn]] = None
 
 
 class ProviderSwitchRequest(BaseModel):
@@ -42,7 +52,6 @@ def run_agent_task(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """Legacy agent workflow (plan + delegate). Kept for comparison."""
     start = time.time()
     orchestrator = OrchestratorAgent()
     result = orchestrator.execute({'request': task_req.request})
@@ -69,18 +78,13 @@ def run_agent_task(
 
 @router.post('/reason')
 def run_reasoning(
-    task_req: TaskRequest,
+    task_req: ReasoningRequest,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    """
-    English: TRUE agentic endpoint — LLM reasons, calls tools, and produces
-             a grounded answer. No hardcoded agent routing.
-    Roman Urdu: REAL agentic endpoint — LLM sochta hai, tools call karta hai,
-                aur grounded answer deta hai. Koi hardcoded routing nahi.
-    """
     start = time.time()
-    result = reasoning_loop(task_req.request)
+    history_dicts = [h.dict() for h in (task_req.history or [])]
+    result = reasoning_loop(task_req.request, history=history_dicts)
     duration_ms = (time.time() - start) * 1000
 
     execution = AgentExecution(

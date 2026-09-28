@@ -1,16 +1,17 @@
 ﻿"""
-English: Real agentic reasoning loop with strict grounding (no hallucinations).
-Roman Urdu: Real agentic reasoning loop with strict grounding.
+English: Real agentic reasoning loop with session memory (multi-turn context).
+Roman Urdu: Real agentic reasoning loop with session memory (multi-turn).
 """
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from backend.app.tools import tool_registry
 from backend.app.core.llm_gateway import get_gateway
 
 logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 5
+MAX_HISTORY_TURNS = 6
 
 SYSTEM_PROMPT = """You are the reasoning core of UniNexus AI, a multi-agent 
 university intelligence platform.
@@ -21,30 +22,13 @@ You have access to TOOLS. To answer:
 3. Look at results. Call more tools if needed.
 4. Produce a final answer USING ONLY FACTS FROM THE TOOL RESULTS.
 
-═══════════════════════════════════════════════════════════════
-ABSOLUTE RULE — ANTI-HALLUCINATION
-═══════════════════════════════════════════════════════════════
+ABSOLUTE RULE — ANTI-HALLUCINATION:
 - If a fact is NOT in the tool results, DO NOT invent it.
-- Do NOT add numbers, dates, fees, or policies that aren't literally 
-  in the returned documents.
-- If you don't have enough info, say: "I don't have that information 
-  in the available documents."
+- Do NOT add numbers, dates, fees, or policies that aren't literally in the returned documents.
+- If you don't have enough info, say: "I don't have that information in the available documents."
 - When stating a policy, QUOTE or closely paraphrase the actual text.
-- Always cite the source: "Per the Fee Policy 2026..." or 
-  "According to Examination Rules and Regulations..."
+- Always cite the source: "Per the Fee Policy 2026..."
 
-EXAMPLES OF WHAT NOT TO DO:
-❌ "The fee is PKR 150,000" (if the fee amount is not in the results)
-❌ "You may need remedial sessions" (if remedial is not mentioned)
-❌ "Re-sits are automatically granted" (unless stated in the source)
-
-EXAMPLES OF WHAT TO DO:
-✅ "The Fee Policy 2026 states that fees are set by the Board of 
-    Trustees. Specific amounts are published on the finance portal."
-✅ "According to the Examination Rules, re-sits are only permitted 
-    on documented medical or compassionate grounds."
-
-═══════════════════════════════════════════════════════════════
 Available tools:
 {tools_desc}
 
@@ -75,27 +59,37 @@ def _strip_json_fences(raw: str) -> str:
             raw = raw[4:]
     return raw.strip()
 
-def reason(user_request: str) -> Dict[str, Any]:
+def _format_history(history: Optional[List[Dict[str, Any]]]) -> str:
+    if not history:
+        return ""
+    recent = history[-MAX_HISTORY_TURNS:]
+    lines = ["CONVERSATION HISTORY (most recent last):"]
+    for turn in recent:
+        role = (turn.get('role') or 'user').capitalize()
+        content = (turn.get('content') or '')[:600]
+        lines.append(f"- {role}: {content}")
+    lines.append("")
+    lines.append("Use this history to resolve pronouns (them/those/it) and to maintain continuity.")
+    lines.append("")
+    return '\n'.join(lines)
+
+def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     gw = get_gateway()
     tools_desc = _format_tools_for_llm()
     system = SYSTEM_PROMPT.replace("{tools_desc}", tools_desc)
 
-    conversation = f"User question: {user_request}\n\nYour turn. Respond with JSON only."
+    history_block = _format_history(history)
+    conversation = (
+        f"{history_block}"
+        f"User question: {user_request}\n\n"
+        f"Your turn. Respond with JSON only."
+    )
     tool_calls_log: List[Dict[str, Any]] = []
 
     for iteration in range(1, MAX_ITERATIONS + 1):
         resp = gw.generate(system + "\n\n" + conversation, json_mode=True)
         if not resp.success or not resp.text:
             logger.warning(f"Reasoning failed at iteration {iteration}: {resp.error}")
-            # English: If the LLM call failed, still return whatever we have.
-            # Roman Urdu: Agar LLM call fail ho gayi, jo hai wahi return karo.
-            if tool_calls_log:
-                return {
-                    "answer": "I gathered some information but could not finalize the answer. Please try again.",
-                    "tool_calls": tool_calls_log,
-                    "iterations": iteration,
-                    "error": resp.error,
-                }
             return {
                 "answer": "I could not complete the reasoning. Please try again.",
                 "tool_calls": tool_calls_log,
@@ -149,8 +143,6 @@ def reason(user_request: str) -> Dict[str, Any]:
                 "summary": summary,
             })
 
-            # English: Give the LLM the FULL result so it doesn't have to invent.
-            # Roman Urdu: LLM ko poora result do taake usay invent na karna pare.
             result_text = json.dumps({
                 "success": result.success,
                 "data": result.data,
@@ -158,8 +150,6 @@ def reason(user_request: str) -> Dict[str, Any]:
                 "error": result.error,
             }, default=str)
 
-            # English: Safety cap — Groq handles ~128k, but let's stay tidy.
-            # Roman Urdu: Safety cap — Groq 128k handle karta hai, lekin limit rakho.
             if len(result_text) > 30000:
                 result_text = result_text[:30000] + '...[truncated]'
 
