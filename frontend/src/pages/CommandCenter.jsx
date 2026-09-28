@@ -2,9 +2,6 @@
 import api from '../api/client';
 import AgentResult from '../components/AgentResult';
 
-// =============================================================================
-// Agent identity map (used by both modes)
-// =============================================================================
 const AGENT_META = {
   AttendanceAgent: { label: 'Attendance', color: 'bg-blue-500', lightBg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
   PolicyAgent: { label: 'Policy', color: 'bg-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
@@ -13,23 +10,20 @@ const AGENT_META = {
 };
 
 // =============================================================================
-// ProviderSwitcher — clickable LLM badge with dropdown
+// ProviderSwitcher (unchanged)
 // =============================================================================
 function ProviderSwitcher({ llmStatus, onChange }) {
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const ref = useRef(null);
-
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
   const ready = llmStatus?.available && llmStatus?.model_ready;
   const providers = llmStatus?.gateway?.providers || [];
   const active = llmStatus?.gateway?.primary_provider || 'unknown';
-
   const switchTo = async (name) => {
     if (name === active) { setOpen(false); return; }
     setSwitching(true);
@@ -37,19 +31,13 @@ function ProviderSwitcher({ llmStatus, onChange }) {
       await api.post('/agents/llm/provider', { provider: name });
       setOpen(false);
       if (onChange) await onChange();
-    } catch (err) {
-      console.error('Failed to switch provider', err);
-    } finally {
-      setSwitching(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setSwitching(false); }
   };
-
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className={`flex items-center gap-2 text-xs rounded-full px-3.5 py-2 shadow-card border-2 transition-all hover:shadow-card-hover ${ready ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}
-      >
+      <button onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-2 text-xs rounded-full px-3.5 py-2 shadow-card border-2 transition-all hover:shadow-card-hover ${ready ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
         <span className={`inline-block w-2 h-2 rounded-full ${ready ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
         <span className="font-semibold">{ready ? `LLM: ${llmStatus.default_model}` : 'LLM: offline'}</span>
         <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,27 +52,17 @@ function ProviderSwitcher({ llmStatus, onChange }) {
           </div>
           <div className="p-1.5 max-h-80 overflow-y-auto">
             {providers.map((p) => (
-              <button
-                key={p.name}
-                onClick={() => switchTo(p.name)}
-                disabled={switching || !p.available}
-                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between transition-colors ${p.name === active ? 'bg-ink-900 text-white cursor-default' : p.available ? 'hover:bg-ink-50 text-ink-900' : 'opacity-50 cursor-not-allowed text-ink-500'}`}
-              >
+              <button key={p.name} onClick={() => switchTo(p.name)} disabled={switching || !p.available}
+                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between transition-colors ${p.name === active ? 'bg-ink-900 text-white' : p.available ? 'hover:bg-ink-50 text-ink-900' : 'opacity-50 cursor-not-allowed text-ink-500'}`}>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className={`inline-block w-1.5 h-1.5 rounded-full ${p.available ? (p.name === active ? 'bg-gold-400' : 'bg-emerald-500') : 'bg-red-500'}`}></span>
                     <span className="text-sm font-semibold capitalize">{p.name}</span>
-                    {p.name === active && (
-                      <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/15 text-gold-300 font-bold">active</span>
-                    )}
                   </div>
                   <div className={`text-[11px] mt-0.5 truncate ${p.name === active ? 'text-ink-200' : 'text-ink-500'}`}>{p.model || 'unknown'}</div>
                 </div>
               </button>
             ))}
-          </div>
-          <div className="px-4 py-2.5 border-t border-ink-100 bg-ink-50/40 text-[11px] text-ink-500">
-            Switch takes effect immediately. Saved to <span className="font-mono text-ink-700">.env</span>.
           </div>
         </div>
       )}
@@ -93,43 +71,18 @@ function ProviderSwitcher({ llmStatus, onChange }) {
 }
 
 // =============================================================================
-// ModeToggle — switch between Agent Workflow and Reasoning Loop
+// ModeToggle (unchanged)
 // =============================================================================
 function ModeToggle({ mode, onChange }) {
   const modes = [
-    {
-      id: 'workflow',
-      label: 'Agent Workflow',
-      sub: 'Plan → Delegate',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'reasoning',
-      label: 'Reasoning Loop',
-      sub: 'Think → Tool-call → Answer',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-        </svg>
-      ),
-    },
+    { id: 'workflow', label: 'Agent Workflow', sub: 'Plan → Delegate', icon: (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /></svg>) },
+    { id: 'reasoning', label: 'Reasoning Loop', sub: 'Think → Tool-call → Answer', icon: (<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>) },
   ];
   return (
     <div className="inline-flex items-center gap-1 p-1 bg-ink-100 border border-ink-200 rounded-xl shadow-inset-soft">
       {modes.map((m) => (
-        <button
-          key={m.id}
-          onClick={() => onChange(m.id)}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
-            mode === m.id
-              ? 'bg-ink-900 text-white shadow-card'
-              : 'text-ink-600 hover:text-ink-900 hover:bg-white'
-          }`}
-        >
+        <button key={m.id} onClick={() => onChange(m.id)}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${mode === m.id ? 'bg-ink-900 text-white shadow-card' : 'text-ink-600 hover:text-ink-900 hover:bg-white'}`}>
           {m.icon}
           <div className="text-left leading-tight">
             <div>{m.label}</div>
@@ -142,7 +95,7 @@ function ModeToggle({ mode, onChange }) {
 }
 
 // =============================================================================
-// ExecutionTimeline (existing — used by workflow mode)
+// ExecutionTimeline (unchanged)
 // =============================================================================
 function ExecutionTimeline({ plan }) {
   if (!plan || plan.length === 0) return null;
@@ -162,19 +115,14 @@ function ExecutionTimeline({ plan }) {
         <div className="flex items-center gap-3 overflow-x-auto pb-3">
           <div className="flex-shrink-0">
             <div className="w-24 h-24 rounded-2xl bg-white/5 backdrop-blur border border-white/10 flex flex-col items-center justify-center gap-2">
-              <svg className="w-6 h-6 text-ink-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.6a2 2 0 011.4.6l3.4 3.4a2 2 0 01.6 1.4V19a2 2 0 01-2 2z" />
-              </svg>
+              <svg className="w-6 h-6 text-ink-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.6a2 2 0 011.4.6l3.4 3.4a2 2 0 01.6 1.4V19a2 2 0 01-2 2z" /></svg>
               <span className="text-[10px] uppercase tracking-widest font-bold text-white">Task</span>
             </div>
           </div>
           <div className="flex-shrink-0 w-10 h-0.5 bg-gradient-to-r from-white/10 to-gold-400/60 rounded-full" />
           <div className="flex-shrink-0">
             <div className="relative w-24 h-24 rounded-2xl gradient-gold flex flex-col items-center justify-center gap-2 shadow-[0_16px_40px_-12px_rgba(209,158,11,0.6)]">
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/30 to-transparent" />
-              <svg className="relative w-6 h-6 text-ink-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
-              </svg>
+              <svg className="relative w-6 h-6 text-ink-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /></svg>
               <span className="relative text-[10px] uppercase tracking-widest font-bold text-ink-950">Orchestrator</span>
             </div>
           </div>
@@ -194,9 +142,7 @@ function ExecutionTimeline({ plan }) {
           <div className="flex-shrink-0 w-10 h-0.5 bg-gradient-to-r from-white/10 to-emerald-400/60 rounded-full" />
           <div className="flex-shrink-0">
             <div className="w-24 h-24 rounded-2xl bg-emerald-500/15 backdrop-blur border border-emerald-400/30 flex flex-col items-center justify-center gap-2">
-              <svg className="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
+              <svg className="w-6 h-6 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
               <span className="text-[10px] uppercase tracking-widest font-bold text-emerald-200">Result</span>
             </div>
           </div>
@@ -207,7 +153,7 @@ function ExecutionTimeline({ plan }) {
 }
 
 // =============================================================================
-// ReasoningTrace — visual chain of thought for reasoning mode
+// ReasoningTrace (unchanged)
 // =============================================================================
 function ReasoningTrace({ toolCalls, iterations }) {
   if (!toolCalls || toolCalls.length === 0) {
@@ -215,9 +161,7 @@ function ReasoningTrace({ toolCalls, iterations }) {
       <div className="bg-white border border-ink-200 rounded-2xl p-6 shadow-card">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-            <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
           <div>
             <div className="text-sm font-semibold text-ink-900">Direct answer — no tools needed</div>
@@ -230,17 +174,13 @@ function ReasoningTrace({ toolCalls, iterations }) {
   return (
     <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
       <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-violet-50/60 to-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-              <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="font-display text-lg font-bold text-ink-900">Reasoning Trace</h2>
-              <p className="text-xs text-ink-500">{iterations} iteration{iterations === 1 ? '' : 's'} · {toolCalls.length} tool call{toolCalls.length === 1 ? '' : 's'}</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+            <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+          </div>
+          <div>
+            <h2 className="font-display text-lg font-bold text-ink-900">Reasoning Trace</h2>
+            <p className="text-xs text-ink-500">{iterations} iteration{iterations === 1 ? '' : 's'} · {toolCalls.length} tool call{toolCalls.length === 1 ? '' : 's'}</p>
           </div>
         </div>
       </div>
@@ -248,25 +188,17 @@ function ReasoningTrace({ toolCalls, iterations }) {
         {toolCalls.map((tc, idx) => (
           <div key={idx} className="flex gap-4">
             <div className="flex flex-col items-center flex-shrink-0">
-              <div className="w-8 h-8 rounded-full bg-violet-500 text-white flex items-center justify-center text-xs font-bold shadow-card">
-                {tc.iteration}
-              </div>
+              <div className="w-8 h-8 rounded-full bg-violet-500 text-white flex items-center justify-center text-xs font-bold shadow-card">{tc.iteration}</div>
               {idx < toolCalls.length - 1 && <div className="flex-1 w-0.5 bg-violet-100 my-2 rounded-full" />}
             </div>
             <div className="flex-1 min-w-0 pb-4">
               <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                 <span className="text-xs font-bold text-ink-900">Called</span>
-                <code className="text-xs font-mono px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
-                  {tc.tool}
-                </code>
+                <code className="text-xs font-mono px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 font-semibold">{tc.tool}</code>
                 {tc.summary?.success ? (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    ✓ {tc.summary.count != null ? `${tc.summary.count} results` : 'ok'}
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">✓ {tc.summary.count != null ? `${tc.summary.count} results` : 'ok'}</span>
                 ) : (
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-                    ✗ error
-                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">✗ error</span>
                 )}
               </div>
               <div className="text-xs text-ink-500 italic mb-1.5">&ldquo;{tc.reasoning}&rdquo;</div>
@@ -275,9 +207,7 @@ function ReasoningTrace({ toolCalls, iterations }) {
                   <span className="group-open:hidden">▸ Show arguments</span>
                   <span className="hidden group-open:inline">▾ Hide arguments</span>
                 </summary>
-                <pre className="mt-2 text-[11px] text-ink-700 bg-ink-50/60 p-3 rounded-lg border border-ink-100 overflow-auto">
-{JSON.stringify(tc.args, null, 2)}
-                </pre>
+                <pre className="mt-2 text-[11px] text-ink-700 bg-ink-50/60 p-3 rounded-lg border border-ink-100 overflow-auto">{JSON.stringify(tc.args, null, 2)}</pre>
               </details>
             </div>
           </div>
@@ -288,16 +218,63 @@ function ReasoningTrace({ toolCalls, iterations }) {
 }
 
 // =============================================================================
+// ChatMessage — one turn in the reasoning conversation
+// =============================================================================
+function ChatMessage({ turn, onToggleRaw, showRaw }) {
+  if (turn.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-2xl bg-ink-900 text-white rounded-2xl rounded-tr-sm px-5 py-3 shadow-card">
+          <div className="text-[10px] uppercase tracking-widest text-gold-300 font-bold mb-1">You</div>
+          <div className="text-sm leading-relaxed whitespace-pre-wrap">{turn.content}</div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-start">
+      <div className="max-w-3xl w-full">
+        <div className="bg-white border border-ink-200 rounded-2xl rounded-tl-sm shadow-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-ink-100 bg-gradient-to-r from-violet-50/60 to-white flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-violet-100 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+              </div>
+              <span className="text-xs font-bold text-ink-900">Reasoning Loop</span>
+            </div>
+            <div className="flex items-center gap-2 text-[10px] text-ink-500 font-mono">
+              {turn.meta?.model && <span>{turn.meta.model}</span>}
+              {turn.meta?.duration_ms != null && <span>· {turn.meta.duration_ms} ms</span>}
+              {turn.meta?.iterations != null && <span>· {turn.meta.iterations} iter</span>}
+            </div>
+          </div>
+          <div className="p-5">
+            <p className="text-[15px] text-ink-800 leading-relaxed whitespace-pre-wrap">{turn.content}</p>
+          </div>
+        </div>
+        {turn.reasoning && <div className="mt-3"><ReasoningTrace toolCalls={turn.reasoning.tool_calls} iterations={turn.reasoning.iterations} /></div>}
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
 // Main component
 // =============================================================================
 export default function CommandCenter() {
-  const [mode, setMode] = useState('workflow'); // 'workflow' | 'reasoning'
-  const [task, setTask] = useState('what happens if I fail an exam?');
+  const [mode, setMode] = useState('reasoning');
+  const [task, setTask] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [showRaw, setShowRaw] = useState({});
   const [llmStatus, setLlmStatus] = useState(null);
+
+  // Reasoning mode: full conversation
+  const [conversation, setConversation] = useState([]);
+  // Workflow mode: last result only
+  const [workflowResult, setWorkflowResult] = useState(null);
+  const [showRaw, setShowRaw] = useState({});
+
+  const scrollRef = useRef(null);
 
   const loadStatus = async () => {
     try {
@@ -307,31 +284,65 @@ export default function CommandCenter() {
       setLlmStatus({ available: false, reason: 'Could not reach backend' });
     }
   };
-
   useEffect(() => { loadStatus(); }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [conversation]);
 
   const handleRun = async () => {
     if (!task.trim()) return;
+    const userMessage = task.trim();
+    setTask('');
     setLoading(true);
     setError(null);
-    setResult(null);
-    setShowRaw({});
-    try {
-      const endpoint = mode === 'reasoning' ? '/agents/reason' : '/agents/run';
-      const response = await api.post(endpoint, { request: task });
-      setResult(response.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to run. Check your connection.');
-    } finally {
-      setLoading(false);
+
+    if (mode === 'reasoning') {
+      const history = conversation
+        .filter(t => t.role === 'user' || (t.role === 'assistant' && t.content))
+        .map(t => ({ role: t.role, content: t.content }));
+      setConversation(prev => [...prev, { role: 'user', content: userMessage }]);
+      try {
+        const response = await api.post('/agents/reason', { request: userMessage, history });
+        const r = response.data;
+        setConversation(prev => [...prev, {
+          role: 'assistant',
+          content: r.answer || 'No answer.',
+          meta: { model: r.model, duration_ms: r.duration_ms, iterations: r.iterations, provider: r.provider },
+          reasoning: { tool_calls: r.tool_calls || [], iterations: r.iterations || 0 },
+        }]);
+      } catch (err) {
+        setError(err.response?.data?.detail || 'Failed to reason. Try again.');
+        setConversation(prev => [...prev, { role: 'assistant', content: '⚠️ Failed to respond. Check your connection and try again.' }]);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      setWorkflowResult(null);
+      setShowRaw({});
+      try {
+        const response = await api.post('/agents/run', { request: userMessage });
+        setWorkflowResult(response.data);
+      } catch (err) {
+        setError(err.response?.data?.detail || 'Failed to run agents.');
+      } finally {
+        setLoading(false);
+      }
     }
+  };
+
+  const clearConversation = () => {
+    setConversation([]);
+    setError(null);
   };
 
   const toggleRaw = (idx) => setShowRaw((prev) => ({ ...prev, [idx]: !prev[idx] }));
 
+  const isReasoning = mode === 'reasoning';
+
   return (
     <div className="p-8 max-w-6xl mx-auto animate-fade-in">
-      {/* ==================== Hero Header ==================== */}
+      {/* Header */}
       <div className="relative bg-gradient-to-br from-white via-white to-ink-50/50 border border-ink-200 rounded-2xl p-8 mb-6 shadow-card">
         <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-gold-100/40 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-wrap items-start justify-between gap-4">
@@ -342,262 +353,191 @@ export default function CommandCenter() {
             </div>
             <h1 className="font-display text-4xl font-bold text-ink-900 mb-2 tracking-tight">AI Command Center</h1>
             <p className="text-ink-500 text-[15px] leading-relaxed">
-              Choose between deterministic agent workflows and real LLM reasoning with tool calls.
+              Choose between deterministic agent workflows and real LLM reasoning with conversation memory.
             </p>
           </div>
           <ProviderSwitcher llmStatus={llmStatus} onChange={loadStatus} />
         </div>
       </div>
 
-      {/* ==================== Mode Toggle ==================== */}
-      <div className="flex justify-center mb-6">
-        <ModeToggle mode={mode} onChange={(m) => { setMode(m); setResult(null); setError(null); }} />
+      {/* Mode toggle + clear button */}
+      <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+        <ModeToggle mode={mode} onChange={(m) => { setMode(m); setError(null); setWorkflowResult(null); }} />
+        {isReasoning && conversation.length > 0 && (
+          <button onClick={clearConversation}
+            className="inline-flex items-center gap-2 text-xs font-semibold text-ink-600 hover:text-ink-900 bg-white border border-ink-200 hover:border-ink-400 rounded-xl px-3.5 py-2.5 shadow-card hover:shadow-card-hover transition-all">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a2 2 0 012-2h2a2 2 0 012 2v3" /></svg>
+            New conversation
+          </button>
+        )}
       </div>
 
-      {/* ==================== Task Input ==================== */}
+      {/* Input */}
       <div className="bg-white border border-ink-200 rounded-2xl p-6 mb-6 shadow-card">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-7 h-7 rounded-lg bg-ink-900 flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
+            <svg className="w-3.5 h-3.5 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
           </div>
           <label className="text-sm font-bold text-ink-900 uppercase tracking-wider">
-            {mode === 'reasoning' ? 'Ask anything (reasoning mode)' : 'Natural Language Task'}
+            {isReasoning ? 'Ask anything (reasoning mode)' : 'Natural Language Task'}
           </label>
+          {isReasoning && conversation.length > 0 && (
+            <span className="ml-auto text-[10px] uppercase tracking-widest font-bold text-violet-700 bg-violet-50 border border-violet-200 rounded-full px-2 py-0.5">
+              {conversation.filter(t => t.role === 'user').length} turns in memory
+            </span>
+          )}
         </div>
         <textarea
           value={task}
           onChange={(e) => setTask(e.target.value)}
-          rows={3}
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleRun(); }}
+          rows={2}
+          placeholder={isReasoning ? "Ask a follow-up — I'll remember the previous turns. (Ctrl+Enter to send)" : "Describe the task..."}
           className="w-full bg-ink-50/50 border border-ink-200 rounded-xl px-4 py-3.5 text-ink-900 placeholder-ink-400 focus:outline-none focus:border-gold-400 focus:ring-4 focus:ring-gold-100 resize-none transition-all text-[15px]"
         />
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
           <div className="text-xs text-ink-500">
             Try:&nbsp;
-            {['what happens if I fail an exam?', 'which students have low attendance?', 'how much does a semester cost?', 'hello, how are you?'].map((s, i, arr) => (
+            {['show me students with low attendance', 'which of them might fail?', 'how much does a semester cost?', 'hello, how are you?'].map((s, i, arr) => (
               <span key={s}>
-                <button onClick={() => setTask(s)} className="text-ink-700 font-semibold hover:text-gold-700 underline decoration-dotted underline-offset-2">
-                  {s}
-                </button>
+                <button onClick={() => setTask(s)} className="text-ink-700 font-semibold hover:text-gold-700 underline decoration-dotted underline-offset-2">{s}</button>
                 {i < arr.length - 1 && ' · '}
               </span>
             ))}
           </div>
-          <button
-            onClick={handleRun}
-            disabled={loading}
-            className="group inline-flex items-center gap-2 gradient-gold text-ink-950 font-bold px-7 py-3 rounded-xl transition-all shadow-[0_8px_20px_-6px_rgba(209,158,11,0.5)] hover:shadow-[0_12px_28px_-6px_rgba(209,158,11,0.7)] hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
-          >
+          <button onClick={handleRun} disabled={loading}
+            className="group inline-flex items-center gap-2 gradient-gold text-ink-950 font-bold px-7 py-3 rounded-xl transition-all shadow-[0_8px_20px_-6px_rgba(209,158,11,0.5)] hover:shadow-[0_12px_28px_-6px_rgba(209,158,11,0.7)] hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0">
             {loading ? (
-              <>
-                <span className="inline-block w-4 h-4 border-2 border-ink-950/30 border-t-ink-950 rounded-full animate-spin"></span>
-                {mode === 'reasoning' ? 'Reasoning…' : 'Executing…'}
-              </>
+              <><span className="inline-block w-4 h-4 border-2 border-ink-950/30 border-t-ink-950 rounded-full animate-spin"></span>{isReasoning ? 'Reasoning…' : 'Executing…'}</>
             ) : (
-              <>
-                {mode === 'reasoning' ? 'Run Reasoning' : 'Run Agents'}
-                <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </>
+              <>{isReasoning ? 'Send' : 'Run Agents'}<svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
             )}
           </button>
         </div>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm font-medium">{error}</div>
-      )}
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm font-medium">{error}</div>}
 
-      {/* ==================== REASONING MODE RESULT ==================== */}
-      {result && result.mode === 'agentic_reasoning' && (
-        <div className="space-y-6">
-          {/* Answer card */}
-          <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
-            <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-violet-50/60 to-white flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
+      {/* REASONING MODE — Chat view */}
+      {isReasoning && conversation.length > 0 && (
+        <div ref={scrollRef} className="space-y-5">
+          {conversation.map((turn, idx) => (
+            <ChatMessage key={idx} turn={turn} onToggleRaw={toggleRaw} showRaw={showRaw} />
+          ))}
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-white border border-ink-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-card">
+                <div className="flex items-center gap-3">
+                  <div className="inline-block w-4 h-4 border-2 border-violet-300 border-t-violet-700 rounded-full animate-spin"></div>
+                  <span className="text-sm text-ink-600">Thinking…</span>
                 </div>
-                <h2 className="font-display text-lg font-bold text-ink-900">Grounded Answer</h2>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {result.duration_ms != null && (
-                  <span className="text-xs px-3 py-1.5 rounded-full bg-ink-900 text-gold-300 border border-ink-900 font-mono font-bold">
-                    {result.duration_ms} ms
-                  </span>
-                )}
-                {result.model && (
-                  <span className="text-xs px-3 py-1.5 rounded-full bg-violet-50 text-violet-700 border-2 border-violet-200 font-bold">
-                    {result.provider} · {result.model}
-                  </span>
-                )}
-                <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500 text-white font-bold">{result.status}</span>
               </div>
             </div>
-            <div className="p-6">
-              <p className="text-[15px] text-ink-800 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
-            </div>
-          </div>
-
-          {/* Reasoning trace */}
-          <ReasoningTrace toolCalls={result.tool_calls} iterations={result.iterations} />
+          )}
         </div>
       )}
 
-      {/* ==================== WORKFLOW MODE RESULT ==================== */}
-      {result && (result.mode === 'agent_workflow' || result.mode === undefined || result.mode === 'direct_answer') && result.execution_plan !== undefined && (
+      {/* WORKFLOW MODE — legacy view */}
+      {!isReasoning && workflowResult && (
         <div className="space-y-6">
-          {/* Direct answer card (if applicable) */}
-          {result.mode === 'direct_answer' && result.direct_answer && (
+          <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
+            <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-ink-50/60 to-white flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                </div>
+                <h2 className="font-display text-lg font-bold text-ink-900">Workflow Execution</h2>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {workflowResult.duration_ms != null && <span className="text-xs px-3 py-1.5 rounded-full bg-ink-900 text-gold-300 border border-ink-900 font-mono font-bold">{workflowResult.duration_ms} ms</span>}
+                <span className={`text-xs px-3 py-1.5 rounded-full font-bold border-2 ${workflowResult.planning_source === 'llm' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                  {workflowResult.planning_source === 'llm' ? 'LLM planned' : 'rule-based'}
+                </span>
+                <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500 text-white font-bold">{workflowResult.status}</span>
+              </div>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
+                <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold">Execution ID</div>
+                <div className="text-sm font-semibold text-ink-900 font-mono ml-auto">#{workflowResult.execution_id}</div>
+              </div>
+              <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
+                <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold">Orchestrator</div>
+                <div className="text-sm font-semibold text-ink-900 ml-auto">{workflowResult.orchestrator}</div>
+              </div>
+              <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
+                <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold">Request</div>
+                <div className="text-sm font-semibold text-ink-900 truncate ml-auto max-w-[140px]" title={workflowResult.original_request}>{workflowResult.original_request}</div>
+              </div>
+            </div>
+          </div>
+
+          {workflowResult.execution_plan && workflowResult.execution_plan.length > 0 && (
+            <>
+              <ExecutionTimeline plan={workflowResult.execution_plan} />
+              <div className="space-y-4">
+                <h2 className="font-display text-xl font-bold text-ink-900">Agent Results</h2>
+                {workflowResult.execution_results.map((step, idx) => {
+                  const meta = AGENT_META[step.agent] || { color: 'bg-ink-500', lightBg: 'bg-ink-50', text: 'text-ink-700' };
+                  return (
+                    <div key={step.step} className="bg-white border border-ink-200 rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover transition-shadow">
+                      <div className={`relative px-6 py-3.5 border-b border-ink-100 flex items-center justify-between ${meta.lightBg}`}>
+                        <div className={`absolute top-0 left-0 right-0 h-1 ${meta.color}`} />
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${meta.color}`}></div>
+                          <span className="font-bold text-ink-900">{step.agent}</span>
+                          <span className={`text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full bg-white ${meta.text} border border-white/80`}>Step {step.step}</span>
+                        </div>
+                        <button onClick={() => toggleRaw(idx)} className="text-xs text-ink-600 hover:text-ink-900 transition-colors bg-white border border-ink-200 hover:border-ink-400 rounded-lg px-3 py-1.5 font-semibold">
+                          {showRaw[idx] ? 'Hide raw' : 'View raw'}
+                        </button>
+                      </div>
+                      <div className="p-6">
+                        {showRaw[idx] ? (
+                          <pre className="text-xs text-ink-100 bg-ink-950 p-4 rounded-lg overflow-auto max-h-96">{JSON.stringify(step.result, null, 2)}</pre>
+                        ) : (
+                          <AgentResult agentName={step.agent} result={step.result} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {workflowResult.mode === 'direct_answer' && workflowResult.direct_answer && (
             <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
               <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-violet-50/60 to-white flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
+                    <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
                   </div>
                   <h2 className="font-display text-lg font-bold text-ink-900">Direct Answer</h2>
                 </div>
-                <span className="text-xs px-3 py-1.5 rounded-full bg-violet-50 text-violet-700 border-2 border-violet-200 font-bold">Casual / Meta</span>
               </div>
               <div className="p-6">
-                <p className="text-[15px] text-ink-800 leading-relaxed whitespace-pre-wrap">{result.direct_answer}</p>
+                <p className="text-[15px] text-ink-800 leading-relaxed whitespace-pre-wrap">{workflowResult.direct_answer}</p>
               </div>
             </div>
-          )}
-
-          {/* Workflow summary (only if agents ran) */}
-          {result.execution_plan && result.execution_plan.length > 0 && (
-            <>
-              <div className="bg-white border border-ink-200 rounded-2xl shadow-card overflow-hidden">
-                <div className="px-6 py-4 border-b border-ink-100 bg-gradient-to-r from-ink-50/60 to-white flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h2 className="font-display text-lg font-bold text-ink-900">Workflow Execution</h2>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {result.duration_ms != null && (
-                      <span className="text-xs px-3 py-1.5 rounded-full bg-ink-900 text-gold-300 border border-ink-900 font-mono font-bold">{result.duration_ms} ms</span>
-                    )}
-                    <span className={`text-xs px-3 py-1.5 rounded-full font-bold border-2 ${result.planning_source === 'llm' ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                      {result.planning_source === 'llm' ? 'LLM planned' : 'rule-based'}
-                    </span>
-                    <span className="text-xs px-3 py-1.5 rounded-full bg-emerald-500 text-white font-bold">{result.status}</span>
-                  </div>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
-                    <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold">Execution ID</div>
-                    <div className="text-sm font-semibold text-ink-900 font-mono ml-auto">#{result.execution_id}</div>
-                  </div>
-                  <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
-                    <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold">Orchestrator</div>
-                    <div className="text-sm font-semibold text-ink-900 ml-auto">{result.orchestrator}</div>
-                  </div>
-                  <div className="flex items-center gap-3 bg-ink-50/60 border border-ink-100 rounded-xl px-4 py-3">
-                    <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold truncate">Request</div>
-                    <div className="text-sm font-semibold text-ink-900 truncate ml-auto max-w-[140px]" title={result.original_request}>{result.original_request}</div>
-                  </div>
-                </div>
-              </div>
-
-              <ExecutionTimeline plan={result.execution_plan} />
-
-              {/* Execution Plan cards */}
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-ink-900 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                  </div>
-                  <h2 className="font-display text-xl font-bold text-ink-900">Execution Plan</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {result.execution_plan.map((step) => {
-                    const meta = AGENT_META[step.agent] || { lightBg: 'bg-ink-50', text: 'text-ink-700', border: 'border-ink-200', color: 'bg-ink-500' };
-                    return (
-                      <div key={step.step} className={`relative bg-white border-2 ${meta.border} rounded-xl p-5 shadow-card hover-lift transition-all overflow-hidden`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className={`inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full ${meta.lightBg} ${meta.text}`}>Step {step.step}</span>
-                          <div className={`w-2 h-2 rounded-full ${meta.color}`}></div>
-                        </div>
-                        <div className="font-bold text-ink-900 text-base mb-1">{step.agent}</div>
-                        <div className="text-xs text-ink-500 leading-relaxed">{step.action}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Agent Results */}
-              <div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-ink-900 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
-                  <h2 className="font-display text-xl font-bold text-ink-900">Agent Results</h2>
-                </div>
-                <div className="space-y-4">
-                  {result.execution_results.map((step, idx) => {
-                    const meta = AGENT_META[step.agent] || { color: 'bg-ink-500', lightBg: 'bg-ink-50', text: 'text-ink-700' };
-                    return (
-                      <div key={step.step} className="bg-white border border-ink-200 rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover transition-shadow">
-                        <div className={`relative px-6 py-3.5 border-b border-ink-100 flex items-center justify-between ${meta.lightBg}`}>
-                          <div className={`absolute top-0 left-0 right-0 h-1 ${meta.color}`} />
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2.5 h-2.5 rounded-full ${meta.color}`}></div>
-                            <span className="font-bold text-ink-900">{step.agent}</span>
-                            <span className={`text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full bg-white ${meta.text} border border-white/80`}>Step {step.step}</span>
-                          </div>
-                          <button
-                            onClick={() => toggleRaw(idx)}
-                            className="text-xs text-ink-600 hover:text-ink-900 transition-colors bg-white border border-ink-200 hover:border-ink-400 rounded-lg px-3 py-1.5 font-semibold"
-                          >
-                            {showRaw[idx] ? 'Hide raw' : 'View raw'}
-                          </button>
-                        </div>
-                        <div className="p-6">
-                          {showRaw[idx] ? (
-                            <pre className="text-xs text-ink-100 bg-ink-950 p-4 rounded-lg overflow-auto max-h-96">{JSON.stringify(step.result, null, 2)}</pre>
-                          ) : (
-                            <AgentResult agentName={step.agent} result={step.result} />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </>
           )}
         </div>
       )}
 
       {/* Empty state */}
-      {!result && !loading && !error && (
+      {!loading && !error && (
+        (isReasoning && conversation.length === 0) ||
+        (!isReasoning && !workflowResult)
+      ) && (
         <div className="relative bg-gradient-to-br from-white to-ink-50/50 border-2 border-dashed border-ink-200 rounded-2xl p-16 text-center overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full bg-gold-100/30 blur-3xl" />
           <div className="relative">
             <div className="w-16 h-16 mx-auto mb-5 rounded-2xl bg-gradient-to-br from-ink-900 to-ink-700 flex items-center justify-center shadow-float">
-              <svg className="w-8 h-8 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <svg className="w-8 h-8 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div className="font-display text-xl font-bold text-ink-900 mb-2">Ready when you are</div>
             <div className="text-sm text-ink-500 max-w-md mx-auto">
-              {mode === 'reasoning' ? 'Enter any question. The LLM will reason, call tools, and give a grounded answer.' : 'Enter a task and click "Run Agents" to see the multi-agent workflow.'}
+              {isReasoning ? 'Start a conversation. Every turn is remembered, so you can ask follow-up questions like "which of them might fail?".' : 'Enter a task and click "Run Agents".'}
             </div>
           </div>
         </div>
