@@ -1,6 +1,6 @@
 ﻿"""
-English: Real agentic reasoning loop with session memory (multi-turn context).
-Roman Urdu: Real agentic reasoning loop with session memory (multi-turn).
+English: Real agentic reasoning loop with session memory and strict tool-calling.
+Roman Urdu: Real agentic reasoning loop with session memory aur strict tool-calling.
 """
 import json
 import logging
@@ -22,12 +22,28 @@ You have access to TOOLS. To answer:
 3. Look at results. Call more tools if needed.
 4. Produce a final answer USING ONLY FACTS FROM THE TOOL RESULTS.
 
-ABSOLUTE RULE — ANTI-HALLUCINATION:
+═══════════════════════════════════════════════════════════════
+CRITICAL RULE — ALWAYS CALL A TOOL WHEN THE USER ASKS ABOUT DATA
+═══════════════════════════════════════════════════════════════
+If the user asks for ACTUAL DATA — students, attendance, grades, courses, enrollments, risks — you MUST call a tool.
+NEVER say "I don't have that information" without first trying a tool.
+Phrases that REQUIRE a tool call:
+- "show me students..." → attendance_query or list_students
+- "which students..." / "who is..." → attendance_query or list_enrollments
+- "find students..." → student_lookup or attendance_query
+- "list students..." → list_students
+- "which might fail" / "at risk" → list_enrollments
+- "what does the policy say" / "rules about" → semantic_search
+
+Only skip tools for pure greetings ("hello", "how are you") or meta questions about YOU ("what are you").
+
+═══════════════════════════════════════════════════════════════
+ANTI-HALLUCINATION
+═══════════════════════════════════════════════════════════════
 - If a fact is NOT in the tool results, DO NOT invent it.
-- Do NOT add numbers, dates, fees, or policies that aren't literally in the returned documents.
-- If you don't have enough info, say: "I don't have that information in the available documents."
+- Do NOT add numbers, dates, fees, or policies not in the returned documents.
 - When stating a policy, QUOTE or closely paraphrase the actual text.
-- Always cite the source: "Per the Fee Policy 2026..."
+- Always cite the source: "Per the Fee Policy 2026..." or "According to Attendance Policy 2026..."
 
 Available tools:
 {tools_desc}
@@ -39,6 +55,8 @@ A) To call a tool:
 
 B) When ready to answer:
 {{"action": "final_answer", "answer": "your grounded answer, citing sources"}}
+
+Remember: when in doubt, CALL A TOOL. The user is here to get real data.
 """
 
 def _format_tools_for_llm() -> str:
@@ -98,7 +116,6 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None) ->
             }
 
         raw = _strip_json_fences(resp.text)
-
         try:
             decision = json.loads(raw)
         except json.JSONDecodeError as e:
@@ -126,9 +143,7 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None) ->
             tool_name = decision.get("tool")
             args = decision.get("args") or {}
             reasoning = decision.get("reasoning", "")
-
             logger.info(f"[iter {iteration}] Tool call: {tool_name} | {reasoning}")
-
             result = tool_registry.call(tool_name, **args)
             summary = {
                 "success": result.success,
@@ -136,23 +151,15 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None) ->
                 "error": result.error,
             }
             tool_calls_log.append({
-                "iteration": iteration,
-                "tool": tool_name,
-                "args": args,
-                "reasoning": reasoning,
-                "summary": summary,
+                "iteration": iteration, "tool": tool_name, "args": args,
+                "reasoning": reasoning, "summary": summary,
             })
-
             result_text = json.dumps({
-                "success": result.success,
-                "data": result.data,
-                "metadata": result.metadata,
-                "error": result.error,
+                "success": result.success, "data": result.data,
+                "metadata": result.metadata, "error": result.error,
             }, default=str)
-
             if len(result_text) > 30000:
                 result_text = result_text[:30000] + '...[truncated]'
-
             conversation += (
                 f"\n\n[Iteration {iteration}] You called tool '{tool_name}' "
                 f"with args {json.dumps(args)}.\nResult:\n{result_text}\n\n"
