@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import CommandCenter from './pages/CommandCenter';
 import AuditLogs from './pages/AuditLogs';
 import Agents from './pages/Agents';
+import Tools from './pages/Tools';
 import Students from './pages/Students';
 import Courses from './pages/Courses';
 import Knowledge from './pages/Knowledge';
@@ -25,6 +26,7 @@ function App() {
         <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditLogs /></ProtectedRoute>} />
         <Route path="/agents" element={<ProtectedRoute><Agents /></ProtectedRoute>} />
+        <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
         <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>} />
         <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
         <Route path="/knowledge" element={<ProtectedRoute><Knowledge /></ProtectedRoute>} />
