@@ -1,4 +1,4 @@
-﻿"""
+"""
 English: Real agentic reasoning loop with session memory and strict tool-calling.
 Roman Urdu: Real agentic reasoning loop with session memory aur strict tool-calling.
 """
@@ -34,6 +34,13 @@ Phrases that REQUIRE a tool call:
 - "list students..." → list_students
 - "which might fail" / "at risk" → list_enrollments
 - "what does the policy say" / "rules about" → semantic_search
+- "what is the definition of X" / "what counts as X" / "is X passing" -> semantic_search FIRST
+- "what grade is passing" / "minimum CGPA" / "pass/fail criteria" -> semantic_search FIRST
+
+IMPORTANT: When the user asks a question that needs a DEFINITION or POLICY
+(passing grade, minimum CGPA, attendance threshold, etc.), you MUST first
+call semantic_search to look it up. Do NOT say "not found in available data"
+without first searching the university documents with semantic_search.
 
 Only skip tools for pure greetings ("hello", "how are you") or meta questions about YOU ("what are you").
 
