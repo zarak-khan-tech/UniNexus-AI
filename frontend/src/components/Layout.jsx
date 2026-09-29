@@ -17,7 +17,7 @@ const NAV_GROUPS = [
       { name: 'Agents', path: '/agents' },
       { name: 'Tools', path: '/tools' },
       { name: 'Approvals', path: '/approvals' },
-      { name: 'Workflows', path: '/workflows', badge: 'soon' },
+      { name: 'Workflows', path: '/workflows' },
     ],
   },
   {
@@ -57,9 +57,9 @@ function timeAgo(iso) {
 }
 
 const KIND_COLORS = {
-  approval: { bg: 'bg-violet-100', text: 'text-violet-700', dot: 'bg-violet-500' },
-  execution: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
-  system: { bg: 'bg-ink-100', text: 'text-ink-700', dot: 'bg-ink-500' },
+  approval: { dot: 'bg-violet-500' },
+  execution: { dot: 'bg-blue-500' },
+  system: { dot: 'bg-ink-500' },
 };
 
 function NotificationBell() {
@@ -73,13 +73,9 @@ function NotificationBell() {
     try {
       const res = await api.get('/notifications?status=all&limit=8');
       setData(res.data);
-    } catch (err) {
-      console.error('Failed to load notifications', err);
-    }
+    } catch (err) { console.error(err); }
   };
 
-  // English: Poll every 30s for new notifications.
-  // Roman Urdu: Har 30 second pe nayi notifications ke liye check karo.
   useEffect(() => {
     fetchNotifications();
     const iv = setInterval(fetchNotifications, 30000);
@@ -114,11 +110,7 @@ function NotificationBell() {
 
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={toggle}
-        className="relative p-2 rounded-lg hover:bg-ink-50 transition-colors"
-        title="Notifications"
-      >
+      <button onClick={toggle} className="relative p-2 rounded-lg hover:bg-ink-50 transition-colors" title="Notifications">
         <svg className="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
@@ -128,34 +120,22 @@ function NotificationBell() {
           </span>
         )}
       </button>
-
       {open && (
         <div className="absolute right-0 mt-2 w-96 bg-white border border-ink-200 rounded-xl shadow-float z-30 overflow-hidden animate-slide-up">
-          {/* Header */}
           <div className="px-4 py-3 border-b border-ink-100 bg-ink-50/60 flex items-center justify-between">
             <div>
               <div className="text-sm font-bold text-ink-900">Notifications</div>
-              <div className="text-[11px] text-ink-500">
-                {unread > 0 ? `${unread} unread` : 'All caught up'}
-              </div>
+              <div className="text-[11px] text-ink-500">{unread > 0 ? `${unread} unread` : 'All caught up'}</div>
             </div>
             {unread > 0 && (
-              <button
-                onClick={async () => {
-                  try { await api.post('/notifications/read-all'); await fetchNotifications(); } catch (e) {}
-                }}
-                className="text-[11px] font-semibold text-ink-600 hover:text-ink-900 transition-colors"
-              >
+              <button onClick={async () => { try { await api.post('/notifications/read-all'); await fetchNotifications(); } catch (e) {} }}
+                className="text-[11px] font-semibold text-ink-600 hover:text-ink-900 transition-colors">
                 Mark all read
               </button>
             )}
           </div>
-
-          {/* List */}
           <div className="max-h-96 overflow-y-auto">
-            {loading && (
-              <div className="p-8 text-center text-xs text-ink-500">Loading…</div>
-            )}
+            {loading && <div className="p-8 text-center text-xs text-ink-500">Loading…</div>}
             {!loading && data.notifications.length === 0 && (
               <div className="p-8 text-center">
                 <div className="text-sm text-ink-500 mb-1">No notifications yet</div>
@@ -165,18 +145,13 @@ function NotificationBell() {
             {!loading && data.notifications.map((n) => {
               const k = KIND_COLORS[n.kind] || KIND_COLORS.system;
               return (
-                <button
-                  key={n.id}
-                  onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-ink-100 last:border-b-0 hover:bg-ink-50/60 transition-colors ${!n.is_read ? 'bg-violet-50/40' : ''}`}
-                >
+                <button key={n.id} onClick={() => handleClick(n)}
+                  className={`w-full text-left px-4 py-3 border-b border-ink-100 last:border-b-0 hover:bg-ink-50/60 transition-colors ${!n.is_read ? 'bg-violet-50/40' : ''}`}>
                   <div className="flex items-start gap-3">
                     <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.is_read ? 'bg-ink-200' : k.dot}`}></div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <div className={`text-xs font-semibold ${n.is_read ? 'text-ink-700' : 'text-ink-900'}`}>
-                          {n.title}
-                        </div>
+                        <div className={`text-xs font-semibold ${n.is_read ? 'text-ink-700' : 'text-ink-900'}`}>{n.title}</div>
                         <div className="text-[10px] text-ink-400 ml-auto whitespace-nowrap">{timeAgo(n.created_at)}</div>
                       </div>
                       <div className="text-xs text-ink-500 leading-snug line-clamp-2">{n.body}</div>
@@ -186,14 +161,9 @@ function NotificationBell() {
               );
             })}
           </div>
-
-          {/* Footer */}
           <div className="px-4 py-2.5 border-t border-ink-100 bg-ink-50/40">
-            <Link
-              to="/notifications"
-              onClick={() => setOpen(false)}
-              className="block text-center text-xs font-semibold text-ink-700 hover:text-ink-900 transition-colors"
-            >
+            <Link to="/notifications" onClick={() => setOpen(false)}
+              className="block text-center text-xs font-semibold text-ink-700 hover:text-ink-900 transition-colors">
               View all notifications →
             </Link>
           </div>
@@ -243,25 +213,13 @@ export default function Layout({ children }) {
               <div className="text-[10px] font-semibold uppercase tracking-widest text-ink-400 px-3 mb-2">{group.label}</div>
               <div className="space-y-0.5">
                 {group.items.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.badge === 'soon' ? '#' : item.path}
-                    end={item.path === '/'}
-                    onClick={(e) => { if (item.badge === 'soon') e.preventDefault(); }}
+                  <NavLink key={item.path} to={item.path} end={item.path === '/'}
                     className={({ isActive }) =>
                       `group flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
-                        item.badge === 'soon'
-                          ? 'text-ink-400 cursor-not-allowed'
-                          : isActive
-                          ? 'bg-ink-900 text-white font-medium'
-                          : 'text-ink-700 hover:bg-ink-50'
+                        isActive ? 'bg-ink-900 text-white font-medium' : 'text-ink-700 hover:bg-ink-50'
                       }`
-                    }
-                  >
+                    }>
                     <span>{item.name}</span>
-                    {item.badge === 'soon' && (
-                      <span className="text-[10px] uppercase tracking-wider text-ink-400 border border-ink-200 rounded px-1.5 py-0.5">soon</span>
-                    )}
                   </NavLink>
                 ))}
               </div>

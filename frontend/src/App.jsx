@@ -8,6 +8,7 @@ import Agents from './pages/Agents';
 import Tools from './pages/Tools';
 import Approvals from './pages/Approvals';
 import Notifications from './pages/Notifications';
+import Workflows from './pages/Workflows';
 import Students from './pages/Students';
 import Courses from './pages/Courses';
 import Knowledge from './pages/Knowledge';
@@ -31,6 +32,7 @@ function App() {
         <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
         <Route path="/approvals" element={<ProtectedRoute><Approvals /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+        <Route path="/workflows" element={<ProtectedRoute><Workflows /></ProtectedRoute>} />
         <Route path="/students" element={<ProtectedRoute><Students /></ProtectedRoute>} />
         <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
         <Route path="/knowledge" element={<ProtectedRoute><Knowledge /></ProtectedRoute>} />
