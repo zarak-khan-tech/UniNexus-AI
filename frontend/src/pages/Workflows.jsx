@@ -53,11 +53,8 @@ function CreateForm({ onCreate, onCancel }) {
         },
       });
       await onCreate();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setBusy(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setBusy(false); }
   };
 
   return (
@@ -105,33 +102,130 @@ function CreateForm({ onCreate, onCancel }) {
   );
 }
 
+// English: Human-friendly result card for a single workflow run.
+// Roman Urdu: Ek workflow run ka insaan-friendly result card.
+function RunResultCard({ results, onDismiss }) {
+  if (!results || results.length === 0) return null;
+
+  const fired = results.filter((r) => r.fired);
+  const totalHits = fired.reduce((sum, r) => sum + (r.context?.hits?.length || 0), 0);
+  const allHits = fired.flatMap((r) => r.context?.hits || []);
+  const isSingle = results.length === 1;
+
+  return (
+    <div className="bg-gradient-to-br from-emerald-50/60 to-white border-2 border-emerald-200 rounded-2xl p-6 mb-6 shadow-card animate-slide-up">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+            <svg className="w-6 h-6 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-[11px] uppercase tracking-widest text-emerald-700 font-bold mb-1">
+              Automation ran
+            </div>
+            <h3 className="font-display text-xl font-bold text-ink-900 leading-tight">
+              {isSingle
+                ? (fired.length > 0 ? 'Workflow completed' : 'Workflow checked — no match')
+                : `${results.length} workflow${results.length === 1 ? '' : 's'} evaluated`}
+            </h3>
+            {totalHits > 0 && (
+              <p className="text-sm text-ink-600 mt-1">
+                <span className="font-bold text-emerald-700">{totalHits} student{totalHits === 1 ? '' : 's'}</span> matched the trigger condition.
+              </p>
+            )}
+          </div>
+        </div>
+        <button onClick={onDismiss} className="text-xs text-ink-500 hover:text-ink-900 font-semibold">Dismiss</button>
+      </div>
+
+      {/* Per-workflow friendly list */}
+      <div className="space-y-3">
+        {results.map((r, idx) => {
+          const hits = r.context?.hits || [];
+          const fired = r.fired;
+          return (
+            <div key={idx} className="bg-white border border-ink-200 rounded-xl p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${fired ? 'bg-emerald-500' : 'bg-ink-300'}`}></span>
+                <span className="font-semibold text-ink-900 text-sm">{r.name || `Workflow #${r.workflow_id}`}</span>
+                {fired ? (
+                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Fired</span>
+                ) : (
+                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-ink-100 text-ink-600 border border-ink-200">No match</span>
+                )}
+                {r.result?.notification_id && (
+                  <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 ml-auto">
+                    Notification sent
+                  </span>
+                )}
+              </div>
+
+              {hits.length > 0 && (
+                <div className="mt-3">
+                  <div className="text-[10px] uppercase tracking-widest text-ink-500 font-bold mb-2">
+                    Matched students
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {hits.slice(0, 12).map((h) => (
+                      <span key={h.student_id} className="inline-flex items-center gap-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded-full px-2.5 py-1">
+                        <span className="font-semibold">{h.name}</span>
+                        <span className="text-[10px] font-mono opacity-70">{h.average_attendance}%</span>
+                      </span>
+                    ))}
+                    {hits.length > 12 && (
+                      <span className="inline-flex items-center text-xs text-ink-500 px-2 py-1">
+                        +{hits.length - 12} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {!fired && r.reason && (
+                <div className="text-xs text-ink-500 italic mt-2">{r.reason}</div>
+              )}
+
+              <details className="mt-3 group">
+                <summary className="text-[11px] font-semibold text-ink-500 cursor-pointer hover:text-ink-900 list-none">
+                  <span className="group-open:hidden">▸ Show technical details</span>
+                  <span className="hidden group-open:inline">▾ Hide technical details</span>
+                </summary>
+                <pre className="mt-2 text-[11px] text-ink-700 bg-ink-50/60 border border-ink-100 p-3 rounded-lg overflow-auto max-h-64">
+{JSON.stringify(r, null, 2)}
+                </pre>
+              </details>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Workflows() {
   const [workflows, setWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState({});
-  const [runAllResult, setRunAllResult] = useState(null);
+  const [runResults, setRunResults] = useState(null);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
       const res = await api.get('/workflows');
       setWorkflows(res.data.workflows || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
   useEffect(() => { fetchAll(); }, []);
 
   const toggle = async (id) => {
     setBusy((b) => ({ ...b, [id]: true }));
-    try {
-      await api.post(`/workflows/${id}/toggle`);
-      await fetchAll();
-    } catch (err) { console.error(err); }
+    try { await api.post(`/workflows/${id}/toggle`); await fetchAll(); }
+    catch (err) { console.error(err); }
     finally { setBusy((b) => ({ ...b, [id]: false })); }
   };
 
@@ -139,7 +233,8 @@ export default function Workflows() {
     setBusy((b) => ({ ...b, [id]: true }));
     try {
       const res = await api.post(`/workflows/${id}/run`);
-      setRunAllResult({ single: res.data });
+      const wf = workflows.find((w) => w.id === id);
+      setRunResults([{ ...res.data, name: wf?.name, workflow_id: id }]);
       await fetchAll();
     } catch (err) { console.error(err); }
     finally { setBusy((b) => ({ ...b, [id]: false })); }
@@ -148,10 +243,8 @@ export default function Workflows() {
   const remove = async (id) => {
     if (!window.confirm('Delete this workflow?')) return;
     setBusy((b) => ({ ...b, [id]: true }));
-    try {
-      await api.delete(`/workflows/${id}`);
-      await fetchAll();
-    } catch (err) { console.error(err); }
+    try { await api.delete(`/workflows/${id}`); await fetchAll(); }
+    catch (err) { console.error(err); }
     finally { setBusy((b) => ({ ...b, [id]: false })); }
   };
 
@@ -159,7 +252,7 @@ export default function Workflows() {
     setBusy((b) => ({ ...b, __all: true }));
     try {
       const res = await api.post('/workflows/run-all');
-      setRunAllResult({ all: res.data.results });
+      setRunResults(res.data.results || []);
       await fetchAll();
     } catch (err) { console.error(err); }
     finally { setBusy((b) => ({ ...b, __all: false })); }
@@ -201,24 +294,7 @@ export default function Workflows() {
 
         {showCreate && <CreateForm onCreate={async () => { setShowCreate(false); await fetchAll(); }} onCancel={() => setShowCreate(false)} />}
 
-        {runAllResult && (
-          <div className="bg-white border border-emerald-200 rounded-2xl p-5 mb-6 shadow-card">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <div className="text-sm font-semibold text-ink-900">
-                {runAllResult.single ? 'Workflow executed' : 'All workflows executed'}
-              </div>
-              <button onClick={() => setRunAllResult(null)} className="ml-auto text-xs text-ink-500 hover:text-ink-900">Dismiss</button>
-            </div>
-            <pre className="text-[11px] text-ink-700 bg-ink-50/60 border border-ink-100 p-3 rounded-lg overflow-auto max-h-64">
-{JSON.stringify(runAllResult.single || runAllResult.all, null, 2)}
-            </pre>
-          </div>
-        )}
+        {runResults && <RunResultCard results={runResults} onDismiss={() => setRunResults(null)} />}
 
         {loading && (
           <div className="bg-white border border-ink-200 rounded-xl p-16 text-center shadow-card">
