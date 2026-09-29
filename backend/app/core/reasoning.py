@@ -1,4 +1,4 @@
-﻿"""
+"""
 English: Real agentic reasoning loop with memory and human-approval gating
          for high-risk actions.
 Roman Urdu: Real agentic reasoning loop — memory aur high-risk actions ke liye
@@ -120,6 +120,20 @@ def _create_approval(user_id: int, user_email: str, tenant_id: int,
         db.add(approval)
         db.commit()
         db.refresh(approval)
+
+        try:
+            from backend.app.services.notifications import create_notification
+            create_notification(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                kind='approval',
+                title='New approval request',
+                body=f'{tool_name.replace("_", " ").title()} requires your review.',
+                action_url='/approvals',
+            )
+        except Exception:
+            pass
+
         return approval.id
     finally:
         db.close()

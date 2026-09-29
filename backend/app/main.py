@@ -1,8 +1,8 @@
 ﻿from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.database import engine, Base
-from backend.app.models import tenant, user, student, course, enrollment, document, agent_execution, approval
-from backend.app.api import auth, agents, stats, academic, analytics, approvals, tools
+from backend.app.models import tenant, user, student, course, enrollment, document, agent_execution, approval, notification
+from backend.app.api import auth, agents, stats, academic, analytics, approvals, tools, notifications
 
 app = FastAPI(
     title='UniNexus AI API',
@@ -30,6 +30,7 @@ app.include_router(academic.router)
 app.include_router(analytics.router)
 app.include_router(approvals.router)
 app.include_router(tools.router)
+app.include_router(notifications.router)
 
 @app.get('/')
 def read_root():

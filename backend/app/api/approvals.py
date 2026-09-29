@@ -11,6 +11,7 @@ from backend.app.core.database import get_db
 from backend.app.models.user import User
 from backend.app.models.approval import Approval
 from backend.app.tools import tool_registry
+from backend.app.services.notifications import create_notification
 
 router = APIRouter(prefix='/approvals', tags=['Approvals'])
 
@@ -62,8 +63,6 @@ def approve(
     if a.status != 'pending':
         raise HTTPException(status_code=400, detail=f'Approval already {a.status}')
 
-    # English: Execute the original tool call with saved args.
-    # Roman Urdu: Original tool call ko saved args ke saath execute karo.
     args = json.loads(a.args_json) if a.args_json else {}
     result = tool_registry.call(a.tool_name, **args)
 
@@ -73,6 +72,19 @@ def approve(
     a.resolved_at = datetime.utcnow()
     a.resolved_by_email = current_user.email
     db.commit()
+
+    try:
+        if a.user_id and a.user_id != current_user.id:
+            create_notification(
+                tenant_id=a.tenant_id,
+                user_id=a.user_id,
+                kind='approval',
+                title='Your approval was granted',
+                body=f'{a.tool_name.replace("_", " ").title()} was approved by {current_user.email}.',
+                action_url='/approvals',
+            )
+    except Exception:
+        pass
 
     return {
         'ok': result.success,
@@ -101,4 +113,18 @@ def reject(
     a.resolved_at = datetime.utcnow()
     a.resolved_by_email = current_user.email
     db.commit()
+
+    try:
+        if a.user_id and a.user_id != current_user.id:
+            create_notification(
+                tenant_id=a.tenant_id,
+                user_id=a.user_id,
+                kind='approval',
+                title='Your approval was declined',
+                body=f'{a.tool_name.replace("_", " ").title()} was declined by {current_user.email}.',
+                action_url='/approvals',
+            )
+    except Exception:
+        pass
+
     return {'ok': True, 'status': 'rejected'}

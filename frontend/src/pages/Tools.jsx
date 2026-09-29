@@ -85,8 +85,8 @@ export default function Tools() {
           </div>
           <h1 className="font-display text-4xl font-bold text-ink-900 mb-2 tracking-tight">Tools</h1>
           <p className="text-ink-500 text-[15px] leading-relaxed">
-            Every callable tool available to the reasoning core, with its permission level.
-            High-risk tools require human approval before execution.
+            Internal capability registry — these are the actions the AI can perform on your behalf.
+            You don't need to interact with them directly; high-risk actions are automatically routed to the <span className="text-ink-800 font-semibold">Approvals</span> page.
           </p>
         </div>
 
