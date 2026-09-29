@@ -7,3 +7,4 @@ from backend.app.models.document import Document
 from backend.app.models.agent_execution import AgentExecution
 from backend.app.models.approval import Approval
 from backend.app.models.notification import Notification
+from backend.app.models.workflow import Workflow
