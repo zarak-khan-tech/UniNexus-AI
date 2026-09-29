@@ -1,5 +1,5 @@
-﻿import { NavLink, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+﻿import { NavLink, useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
 
 const NAV_GROUPS = [
@@ -31,7 +31,7 @@ const NAV_GROUPS = [
   {
     label: 'Operations',
     items: [
-      { name: 'Notifications', path: '/notifications', badge: 'soon' },
+      { name: 'Notifications', path: '/notifications' },
       { name: 'Audit Logs', path: '/audit' },
     ],
   },
@@ -43,6 +43,164 @@ function getInitials(email) {
   const parts = name.split(/[.\-_]/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+function timeAgo(iso) {
+  const now = new Date();
+  const then = new Date(iso);
+  const diff = Math.floor((now - then) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return then.toLocaleDateString();
+}
+
+const KIND_COLORS = {
+  approval: { bg: 'bg-violet-100', text: 'text-violet-700', dot: 'bg-violet-500' },
+  execution: { bg: 'bg-blue-100', text: 'text-blue-700', dot: 'bg-blue-500' },
+  system: { bg: 'bg-ink-100', text: 'text-ink-700', dot: 'bg-ink-500' },
+};
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState({ notifications: [], unread_count: 0 });
+  const [loading, setLoading] = useState(false);
+  const ref = useRef(null);
+  const navigate = useNavigate();
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await api.get('/notifications?status=all&limit=8');
+      setData(res.data);
+    } catch (err) {
+      console.error('Failed to load notifications', err);
+    }
+  };
+
+  // English: Poll every 30s for new notifications.
+  // Roman Urdu: Har 30 second pe nayi notifications ke liye check karo.
+  useEffect(() => {
+    fetchNotifications();
+    const iv = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      setLoading(true);
+      await fetchNotifications();
+      setLoading(false);
+    }
+  };
+
+  const handleClick = async (n) => {
+    if (!n.is_read) {
+      try { await api.post(`/notifications/${n.id}/read`); } catch (e) {}
+    }
+    setOpen(false);
+    if (n.action_url) navigate(n.action_url);
+  };
+
+  const unread = data.unread_count || 0;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={toggle}
+        className="relative p-2 rounded-lg hover:bg-ink-50 transition-colors"
+        title="Notifications"
+      >
+        <svg className="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-96 bg-white border border-ink-200 rounded-xl shadow-float z-30 overflow-hidden animate-slide-up">
+          {/* Header */}
+          <div className="px-4 py-3 border-b border-ink-100 bg-ink-50/60 flex items-center justify-between">
+            <div>
+              <div className="text-sm font-bold text-ink-900">Notifications</div>
+              <div className="text-[11px] text-ink-500">
+                {unread > 0 ? `${unread} unread` : 'All caught up'}
+              </div>
+            </div>
+            {unread > 0 && (
+              <button
+                onClick={async () => {
+                  try { await api.post('/notifications/read-all'); await fetchNotifications(); } catch (e) {}
+                }}
+                className="text-[11px] font-semibold text-ink-600 hover:text-ink-900 transition-colors"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
+
+          {/* List */}
+          <div className="max-h-96 overflow-y-auto">
+            {loading && (
+              <div className="p-8 text-center text-xs text-ink-500">Loading…</div>
+            )}
+            {!loading && data.notifications.length === 0 && (
+              <div className="p-8 text-center">
+                <div className="text-sm text-ink-500 mb-1">No notifications yet</div>
+                <div className="text-xs text-ink-400">You'll see updates here when the AI acts.</div>
+              </div>
+            )}
+            {!loading && data.notifications.map((n) => {
+              const k = KIND_COLORS[n.kind] || KIND_COLORS.system;
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => handleClick(n)}
+                  className={`w-full text-left px-4 py-3 border-b border-ink-100 last:border-b-0 hover:bg-ink-50/60 transition-colors ${!n.is_read ? 'bg-violet-50/40' : ''}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.is_read ? 'bg-ink-200' : k.dot}`}></div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <div className={`text-xs font-semibold ${n.is_read ? 'text-ink-700' : 'text-ink-900'}`}>
+                          {n.title}
+                        </div>
+                        <div className="text-[10px] text-ink-400 ml-auto whitespace-nowrap">{timeAgo(n.created_at)}</div>
+                      </div>
+                      <div className="text-xs text-ink-500 leading-snug line-clamp-2">{n.body}</div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-2.5 border-t border-ink-100 bg-ink-50/40">
+            <Link
+              to="/notifications"
+              onClick={() => setOpen(false)}
+              className="block text-center text-xs font-semibold text-ink-700 hover:text-ink-900 transition-colors"
+            >
+              View all notifications →
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Layout({ children }) {
@@ -137,10 +295,10 @@ export default function Layout({ children }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button className="relative p-2 rounded-lg hover:bg-ink-50 transition-colors" title="Notifications (coming soon)">
-                <svg className="w-5 h-5 text-ink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+              <NotificationBell />
+              <button onClick={handleLogout} className="text-sm text-ink-600 hover:text-ink-900 px-3 py-1.5 rounded-lg hover:bg-ink-50 transition-colors">
+                Sign out
               </button>
-              <button onClick={handleLogout} className="text-sm text-ink-600 hover:text-ink-900 px-3 py-1.5 rounded-lg hover:bg-ink-50 transition-colors">Sign out</button>
             </div>
           </div>
         </header>
