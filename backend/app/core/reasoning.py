@@ -41,6 +41,11 @@ ANTI-HALLUCINATION:
 - When stating a policy, QUOTE or closely paraphrase the actual text.
 - Always cite the source: "Per the Grading System Guidelines..." 
 
+NEVER DESCRIBE A TOOL CALL IN NATURAL LANGUAGE:
+- If you decide a tool is needed, you MUST emit {"action": "tool_call", ...}.
+- Do NOT write sentences like "we can call X tool" or "the update_student_grade tool will...".
+- If you catch yourself describing a tool call, STOP and instead emit the JSON action.
+
 HIGH-RISK ACTIONS REQUIRE APPROVAL:
 - Some tools are marked HIGH-RISK (write_high) — e.g. update_student_grade.
 - When you call a high-risk tool, it will NOT execute immediately. Instead, it will 
@@ -181,6 +186,26 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
 
         if action == "final_answer":
             answer = (decision.get("answer") or "").strip()
+
+            # English: If the LLM just DESCRIBED a tool call, force a retry with a nudge.
+            # Roman Urdu: Agar LLM ne tool call ko sirf DESCRIBE kiya, to nudge ke saath retry karo.
+            lowered = answer.lower()
+            looks_like_description = any([
+                "we can call" in lowered,
+                "should call" in lowered,
+                "will require human approval" in lowered and "tool" in lowered,
+                "call the" in lowered and "tool" in lowered,
+            ])
+            if looks_like_description and iteration < MAX_ITERATIONS:
+                conversation += (
+                    "\n\n[Correction] Your previous response DESCRIBED a tool call "
+                    "instead of emitting an actual tool_call action. "
+                    "Do NOT describe. Emit STRICT JSON: "
+                    "{{\"action\": \"tool_call\", \"tool\": \"tool_name\", \"args\": {{...}}}}. "
+                    "Try again now."
+                )
+                continue
+
             return {
                 "answer": answer or "No answer generated.",
                 "tool_calls": tool_calls_log,
