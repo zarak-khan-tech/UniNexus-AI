@@ -242,7 +242,7 @@ UniNexus-AI/
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+
+- Node.js 20+
 - Ollama if using local LLMs or local embeddings
 
 ### 1. Clone and create the Python environment
@@ -257,10 +257,10 @@ python -m venv .venv
 
 ### 2. Install backend dependencies
 
-The project currently does not ship a dedicated `requirements.txt`, so install the required Python packages directly:
+Install the pinned project dependency manifest:
 
 ```powershell
-python -m pip install fastapi "uvicorn[standard]" sqlalchemy pydantic-settings python-jose[cryptography] "passlib[bcrypt]" python-multipart email-validator python-dotenv ollama groq google-genai pytest httpx requests numpy
+python -m pip install -r requirements.txt
 ```
 
 ### 3. Prepare demo data and the knowledge base
