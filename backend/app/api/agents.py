@@ -13,6 +13,7 @@ from backend.app.agents.orchestrator import OrchestratorAgent
 from backend.app.agents.registry import registry
 from backend.app.agents.specialized import AttendanceAgent, PolicyAgent, RiskAgent, KnowledgeAgent
 from backend.app.api.deps import get_current_active_user
+from backend.app.api.roles import require_role, ADMIN_ROLES
 from backend.app.core.database import get_db
 from backend.app.core.llm import check_ollama_status
 from backend.app.core.llm_gateway import get_gateway
@@ -148,7 +149,7 @@ def list_registered_agents(
 def patch_agent_definition(
     agent_name: str,
     body: AgentDefinitionUpdate,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_role(*ADMIN_ROLES)),
 ):
     updates = {k: v for k, v in body.dict().items() if v is not None}
     if not updates:
