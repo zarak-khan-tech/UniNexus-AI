@@ -18,17 +18,10 @@ class AttendanceAgent(BaseAgent):
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
         import re
-
-        # English: Read threshold from tenant settings; fall back to 75.0.
-        # Roman Urdu: Threshold tenant settings se padho; warna 75.0 use karo.
         tenant_id = task.get('tenant_id')
         settings = get_tenant_settings(tenant_id) if tenant_id else {}
         threshold = float(settings.get('attendance_threshold', 75.0))
 
-        # English: If the user's request contains an explicit percentage,
-        #          that overrides the tenant default.
-        # Roman Urdu: Agar user request mein koi percentage ho, to wahi tenant
-        #             default ko override karti hai.
         request = task.get('request', '').lower()
         match = re.search(r'(\d{2,3})\s*%', request)
         if match:
@@ -39,12 +32,7 @@ class AttendanceAgent(BaseAgent):
 
         result = tool_registry.call('attendance_query', threshold=threshold)
         if not result.success:
-            return {
-                'status': 'error',
-                'agent': self.name,
-                'tool_used': 'attendance_query',
-                'error': result.error,
-            }
+            return {'status': 'error', 'agent': self.name, 'tool_used': 'attendance_query', 'error': result.error}
 
         rows = result.data or []
         return {
@@ -85,6 +73,13 @@ class RiskAgent(BaseAgent):
         super().__init__(name='RiskAgent', description='Analyzes academic risk via the list_enrollments tool.')
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        # English: Read both thresholds from tenant settings; fall back to safe defaults.
+        # Roman Urdu: Dono thresholds tenant settings se padho; warna defaults use karo.
+        tenant_id = task.get('tenant_id')
+        settings = get_tenant_settings(tenant_id) if tenant_id else {}
+        high_threshold = float(settings.get('risk_high_threshold', 60))
+        medium_threshold = float(settings.get('risk_medium_threshold', 75))
+
         result = tool_registry.call('list_enrollments', limit=500)
         if not result.success:
             return {'status': 'error', 'agent': self.name, 'tool_used': 'list_enrollments', 'error': result.error}
@@ -93,9 +88,9 @@ class RiskAgent(BaseAgent):
         for row in result.data or []:
             attendance = row.get('attendance_percentage', 100) or 0
             grade = row.get('grade') or ''
-            if attendance < 60 or grade in ('D', 'F'):
+            if attendance < high_threshold or grade in ('D', 'F'):
                 level = 'High'
-            elif attendance < 75 or grade == 'C':
+            elif attendance < medium_threshold or grade == 'C':
                 level = 'Medium'
             else:
                 level = 'Low'
@@ -107,7 +102,18 @@ class RiskAgent(BaseAgent):
                     'grade': grade,
                     'risk_level': level,
                 })
-        return {'status': 'success', 'agent': self.name, 'tool_used': 'list_enrollments', 'at_risk_students': risk_assessments}
+
+        return {
+            'status': 'success',
+            'agent': self.name,
+            'tool_used': 'list_enrollments',
+            'thresholds': {
+                'high': high_threshold,
+                'medium': medium_threshold,
+                'source': 'tenant_settings',
+            },
+            'at_risk_students': risk_assessments,
+        }
 
 
 class KnowledgeAgent(BaseAgent):
