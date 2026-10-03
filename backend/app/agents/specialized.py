@@ -57,14 +57,24 @@ class AttendanceAgent(BaseAgent):
 
 class PolicyAgent(BaseAgent):
     def __init__(self):
-        super().__init__(name='PolicyAgent', description='Checks institutional policies and thresholds.')
+        super().__init__(
+            name='PolicyAgent',
+            description='Returns institutional policy rules and thresholds.'
+        )
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
+        # English: Read threshold from tenant settings; fall back to 75.
+        # Roman Urdu: Threshold tenant settings se padho; warna 75 use karo.
+        tenant_id = task.get('tenant_id')
+        settings = get_tenant_settings(tenant_id) if tenant_id else {}
+        threshold = float(settings.get('attendance_threshold', 75))
+
         return {
             'status': 'success',
             'agent': self.name,
-            'policy_threshold': 75,
-            'rule': 'Students below 75% attendance require intervention.',
+            'policy_threshold': threshold,
+            'rule': f'Students below {threshold}% attendance require intervention.',
+            'source': 'tenant_settings',
         }
 
 
@@ -73,8 +83,6 @@ class RiskAgent(BaseAgent):
         super().__init__(name='RiskAgent', description='Analyzes academic risk via the list_enrollments tool.')
 
     def execute(self, task: Dict[str, Any]) -> Dict[str, Any]:
-        # English: Read both thresholds from tenant settings; fall back to safe defaults.
-        # Roman Urdu: Dono thresholds tenant settings se padho; warna defaults use karo.
         tenant_id = task.get('tenant_id')
         settings = get_tenant_settings(tenant_id) if tenant_id else {}
         high_threshold = float(settings.get('risk_high_threshold', 60))
