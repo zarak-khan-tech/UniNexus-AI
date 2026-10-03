@@ -33,6 +33,7 @@ const NAV_GROUPS = [
     items: [
       { name: 'Notifications', path: '/notifications' },
       { name: 'Audit Logs', path: '/audit' },
+      { name: 'Settings', path: '/settings' },
     ],
   },
 ];

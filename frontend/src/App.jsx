@@ -13,6 +13,7 @@ import Students from './pages/Students';
 import Courses from './pages/Courses';
 import Knowledge from './pages/Knowledge';
 import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -37,6 +38,7 @@ function App() {
         <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
         <Route path="/knowledge" element={<ProtectedRoute><Knowledge /></ProtectedRoute>} />
         <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       </Routes>
     </Router>
   );
