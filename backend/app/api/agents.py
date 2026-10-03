@@ -54,7 +54,12 @@ def run_agent_task(
 ):
     start = time.time()
     orchestrator = OrchestratorAgent()
-    result = orchestrator.execute({'request': task_req.request})
+    # English: Pass tenant_id so agents can read tenant-scoped settings.
+    # Roman Urdu: tenant_id pass karo taake agents tenant-specific settings padh sakein.
+    result = orchestrator.execute({
+        'request': task_req.request,
+        'tenant_id': current_user.tenant_id,
+    })
     duration_ms = (time.time() - start) * 1000
 
     execution = AgentExecution(
