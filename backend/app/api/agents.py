@@ -1,4 +1,4 @@
-﻿"""
+"""
 English: API routes for agents, reasoning, LLM provider, and agent definitions.
 Roman Urdu: Agents, reasoning, LLM provider, aur agent definitions ke API routes.
 """
@@ -132,11 +132,16 @@ def run_reasoning(
 
 @router.get('/list')
 def list_registered_agents(
+    include_inactive: bool = True,
     current_user: User = Depends(get_current_active_user),
 ):
-    # English: Read from DB, not hardcoded class list.
-    # Roman Urdu: DB se padho, hardcoded class list nahi.
-    return {'agents': list_agent_definitions(current_user.tenant_id, active_only=True)}
+    # English: Return all agents by default so the UI can show disabled ones
+    #          with a "Paused" state. Callers can pass ?include_inactive=false
+    #          to filter to only active.
+    # Roman Urdu: Default mein saare agents return karo taake UI disabled ko
+    #             "Paused" state mein dikha sake. Filter ke liye
+    #             ?include_inactive=false pass karo.
+    return {'agents': list_agent_definitions(current_user.tenant_id, active_only=not include_inactive)}
 
 
 @router.patch('/definitions/{agent_name}')
