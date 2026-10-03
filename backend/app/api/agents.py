@@ -128,6 +128,9 @@ def run_reasoning(
         'execution_id': execution.id,
         'duration_ms': round(duration_ms, 2),
         'status': 'completed' if not result.get('error') else 'partial',
+        # English: Deduped RAG sources for the frontend.
+        # Roman Urdu: Frontend ke liye deduped RAG sources.
+        'sources': result.get('sources', []),
     }
 
 

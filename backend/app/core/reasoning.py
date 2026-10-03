@@ -1,6 +1,8 @@
 ﻿"""
-English: Real agentic reasoning loop with session memory and tenant awareness.
-Roman Urdu: Real agentic reasoning loop — session memory aur tenant awareness ke saath.
+English: Real agentic reasoning loop with session memory, tenant awareness,
+         and RAG source tracking.
+Roman Urdu: Real agentic reasoning loop — session memory, tenant awareness,
+            aur RAG source tracking ke saath.
 """
 import json
 import logging
@@ -14,8 +16,6 @@ MAX_ITERATIONS = 5
 MAX_HISTORY_TURNS = 6
 
 
-# English: Base prompt — dynamic pieces get injected at call time.
-# Roman Urdu: Base prompt — dynamic pieces call time pe inject hote hain.
 BASE_PROMPT = """You are the reasoning core of UniNexus AI, a multi-agent 
 university intelligence platform.
 
@@ -48,7 +48,7 @@ Phrases that REQUIRE a tool call:
 ANTI-HALLUCINATION:
 - If a fact is NOT in the tool results, DO NOT invent it.
 - When stating a policy, QUOTE or closely paraphrase the actual text.
-- Always cite the source.
+- Always cite the source by title (e.g. "Per the Examination Rules and Regulations...").
 
 HIGH-RISK ACTIONS REQUIRE APPROVAL:
 - Tools marked write_high (e.g. update_student_grade) do NOT execute immediately.
@@ -103,8 +103,6 @@ def _format_history(history: Optional[List[Dict[str, Any]]]) -> str:
 
 
 def _build_system_prompt(settings: Dict[str, Any]) -> str:
-    """English: Fill in the base prompt with tenant-specific values.
-    Roman Urdu: Base prompt mein tenant-specific values bharo."""
     tools_desc = _format_tools_for_llm()
     return BASE_PROMPT.format(
         attendance_threshold=settings.get('attendance_threshold', 75),
@@ -113,6 +111,47 @@ def _build_system_prompt(settings: Dict[str, Any]) -> str:
         university_name=settings.get('university_name', 'the university'),
         tools_desc=tools_desc,
     )
+
+
+def _extract_sources_from_tool_result(tool_name: str, result_data: Any) -> List[Dict[str, Any]]:
+    """
+    English: If this tool was semantic_search, extract source citations from its
+             returned documents. Returned as a list of dicts with title, category, similarity.
+    Roman Urdu: Agar ye tool semantic_search tha, to uske returned documents se
+                source citations nikalo (title, category, similarity).
+    """
+    if tool_name != 'semantic_search' or not isinstance(result_data, list):
+        return []
+    sources = []
+    for doc in result_data:
+        if not isinstance(doc, dict):
+            continue
+        title = doc.get('title')
+        if not title:
+            continue
+        sources.append({
+            'title': title,
+            'category': doc.get('category'),
+            'similarity': doc.get('similarity'),
+        })
+    return sources
+
+
+def _dedupe_sources(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    English: Remove duplicate sources by title, keeping the highest similarity.
+    Roman Urdu: Title ke hisaab se duplicate sources hatao, sab se zyada similarity rakho.
+    """
+    by_title: Dict[str, Dict[str, Any]] = {}
+    for s in sources:
+        t = s.get('title')
+        if not t:
+            continue
+        if t not in by_title or (s.get('similarity') or 0) > (by_title[t].get('similarity') or 0):
+            by_title[t] = s
+    # English: Sort by similarity descending.
+    # Roman Urdu: Similarity descending order mein sort karo.
+    return sorted(by_title.values(), key=lambda x: x.get('similarity') or 0, reverse=True)
 
 
 def _create_approval(user_id: int, user_email: str, tenant_id: int,
@@ -149,8 +188,6 @@ def _create_approval(user_id: int, user_email: str, tenant_id: int,
 def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
            user_id: Optional[int] = None, user_email: Optional[str] = None,
            tenant_id: Optional[int] = None) -> Dict[str, Any]:
-    # English: Load tenant settings and build the dynamic system prompt.
-    # Roman Urdu: Tenant settings load karo aur dynamic system prompt banao.
     settings = get_tenant_settings(tenant_id) if tenant_id else {}
     system = _build_system_prompt(settings)
 
@@ -162,6 +199,7 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
         f"Your turn. Respond with JSON only."
     )
     tool_calls_log: List[Dict[str, Any]] = []
+    collected_sources: List[Dict[str, Any]] = []
     pending_approval_id: Optional[int] = None
 
     for iteration in range(1, MAX_ITERATIONS + 1):
@@ -170,7 +208,8 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             logger.warning(f"Reasoning failed at iteration {iteration}: {resp.error}")
             return {
                 "answer": "I could not complete the reasoning. Please try again.",
-                "tool_calls": tool_calls_log, "iterations": iteration, "error": resp.error,
+                "tool_calls": tool_calls_log, "iterations": iteration,
+                "error": resp.error, "sources": _dedupe_sources(collected_sources),
             }
 
         raw = _strip_json_fences(resp.text)
@@ -180,7 +219,8 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             logger.error(f"Bad JSON: {e}. Raw: {raw[:200]}")
             return {
                 "answer": "I had trouble parsing my own reasoning. Please retry.",
-                "tool_calls": tool_calls_log, "iterations": iteration, "error": "invalid_json",
+                "tool_calls": tool_calls_log, "iterations": iteration,
+                "error": "invalid_json", "sources": _dedupe_sources(collected_sources),
             }
 
         action = decision.get("action")
@@ -192,6 +232,9 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 "tool_calls": tool_calls_log, "iterations": iteration,
                 "provider": resp.provider, "model": resp.model,
                 "pending_approval_id": pending_approval_id,
+                # English: Deduped, sorted source citations for the frontend.
+                # Roman Urdu: Deduped, sorted source citations frontend ke liye.
+                "sources": _dedupe_sources(collected_sources),
             }
 
         if action == "tool_call":
@@ -209,8 +252,6 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 conversation += f"\n\n[Iteration {iteration}] Error: tool '{tool_name}' does not exist."
                 continue
 
-            # English: WRITE_HIGH → approval queue, not direct execution.
-            # Roman Urdu: WRITE_HIGH → approval queue, direct execution nahi.
             from backend.app.tools.base import PermissionLevel
             if tool.permission == PermissionLevel.WRITE_HIGH:
                 desc = f"Call {tool_name} with args: {json.dumps(args)}"
@@ -235,8 +276,6 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 )
                 continue
 
-            # English: READ / WRITE_LOW → execute immediately.
-            # Roman Urdu: READ / WRITE_LOW → foran execute.
             result = tool_registry.call(tool_name, **args)
             summary = {
                 "success": result.success,
@@ -247,6 +286,13 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 "iteration": iteration, "tool": tool_name, "args": args,
                 "reasoning": reasoning, "summary": summary,
             })
+
+            # English: Track semantic_search sources for citation.
+            # Roman Urdu: semantic_search sources citation ke liye track karo.
+            if tool_name == 'semantic_search' and result.success and result.data:
+                extracted = _extract_sources_from_tool_result(tool_name, result.data)
+                collected_sources.extend(extracted)
+
             result_text = json.dumps({
                 "success": result.success, "data": result.data,
                 "metadata": result.metadata, "error": result.error,
@@ -263,10 +309,12 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             "answer": "I produced an unexpected reasoning step. Please retry.",
             "tool_calls": tool_calls_log, "iterations": iteration,
             "error": f"unknown_action:{action}",
+            "sources": _dedupe_sources(collected_sources),
         }
 
     return {
         "answer": "I reached the maximum reasoning steps.",
         "tool_calls": tool_calls_log, "iterations": MAX_ITERATIONS,
         "error": "max_iterations", "pending_approval_id": pending_approval_id,
+        "sources": _dedupe_sources(collected_sources),
     }

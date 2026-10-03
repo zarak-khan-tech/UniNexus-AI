@@ -241,6 +241,27 @@ function ChatMessage({ turn }) {
             <p className="text-[15px] text-ink-800 leading-relaxed whitespace-pre-wrap">{turn.content}</p>
           </div>
         </div>
+        {turn.sources && turn.sources.length > 0 && (
+          <div className="mt-3 bg-white border border-violet-200 rounded-2xl p-4 shadow-card">
+            <div className="flex items-center gap-2 mb-2">
+              <svg className="w-3.5 h-3.5 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              <span className="text-[11px] uppercase tracking-widest font-bold text-violet-700">Sources</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {turn.sources.map((s, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 text-xs bg-violet-50 text-violet-800 border border-violet-200 rounded-full px-2.5 py-1">
+                  <span className="font-semibold">{s.title}</span>
+                  {s.category && <span className="text-[10px] opacity-70">{s.category}</span>}
+                  {s.similarity != null && (
+                    <span className="text-[10px] font-mono opacity-60">{Math.round(s.similarity * 100)}%</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {turn.reasoning && <div className="mt-3"><ReasoningTrace toolCalls={turn.reasoning.tool_calls} iterations={turn.reasoning.iterations} /></div>}
       </div>
     </div>
@@ -325,6 +346,7 @@ export default function CommandCenter() {
           content: r.answer || 'No answer.',
           meta: { model: r.model, duration_ms: r.duration_ms, iterations: r.iterations, provider: r.provider },
           reasoning: { tool_calls: r.tool_calls || [], iterations: r.iterations || 0 },
+          sources: r.sources || [],
         }]);
       } catch (err) {
         setError(err.response?.data?.detail || 'Failed to reason. Try again.');
