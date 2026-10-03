@@ -2,22 +2,26 @@
 import { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
 
+// English: Each nav item declares which roles can see it. Missing `roles` means
+//         visible to everyone (Dashboard, Command Center, etc.).
+// Roman Urdu: Har nav item batata hai kaunse roles dekh sakte hain. Agar `roles`
+//             na ho to sab dekh sakte hain.
 const NAV_GROUPS = [
   {
     label: 'Overview',
     items: [
       { name: 'Dashboard', path: '/' },
       { name: 'AI Command Center', path: '/command-center' },
-      { name: 'Analytics', path: '/analytics' },
+      { name: 'Analytics', path: '/analytics', roles: ['admin', 'super_admin', 'faculty'] },
     ],
   },
   {
     label: 'Intelligence',
     items: [
-      { name: 'Agents', path: '/agents' },
-      { name: 'Tools', path: '/tools' },
-      { name: 'Approvals', path: '/approvals' },
-      { name: 'Workflows', path: '/workflows' },
+      { name: 'Agents', path: '/agents', roles: ['admin', 'super_admin'] },
+      { name: 'Tools', path: '/tools', roles: ['admin', 'super_admin', 'faculty'] },
+      { name: 'Approvals', path: '/approvals', roles: ['admin', 'super_admin'] },
+      { name: 'Workflows', path: '/workflows', roles: ['admin', 'super_admin', 'faculty'] },
     ],
   },
   {
@@ -32,8 +36,8 @@ const NAV_GROUPS = [
     label: 'Operations',
     items: [
       { name: 'Notifications', path: '/notifications' },
-      { name: 'Audit Logs', path: '/audit' },
-      { name: 'Settings', path: '/settings' },
+      { name: 'Audit Logs', path: '/audit', roles: ['admin', 'super_admin', 'faculty'] },
+      { name: 'Settings', path: '/settings', roles: ['admin', 'super_admin'] },
     ],
   },
 ];
@@ -44,6 +48,14 @@ function getInitials(email) {
   const parts = name.split(/[.\-_]/).filter(Boolean);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
+}
+
+// English: Check if a role can see a nav item. Empty/missing roles = visible to all.
+// Roman Urdu: Check karo ke role nav item dekh sakta hai ya nahi.
+function canSee(role, itemRoles) {
+  if (!itemRoles || itemRoles.length === 0) return true;
+  if (!role) return false;
+  return itemRoles.includes(String(role).toLowerCase());
 }
 
 function timeAgo(iso) {
@@ -196,6 +208,13 @@ export default function Layout({ children }) {
     navigate('/login');
   };
 
+  // English: Filter nav based on the current user's role.
+  // Roman Urdu: Current user ke role ke hisaab se nav filter karo.
+  const userRole = (user?.role || '').toLowerCase();
+  const visibleGroups = NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.filter((it) => canSee(userRole, it.roles)) }))
+    .filter((g) => g.items.length > 0);
+
   return (
     <div className="min-h-screen bg-slate-50 text-ink-900 flex">
       <aside className="hidden md:flex w-64 flex-col border-r border-ink-100 bg-white">
@@ -209,7 +228,7 @@ export default function Layout({ children }) {
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label}>
               <div className="text-[10px] font-semibold uppercase tracking-widest text-ink-400 px-3 mb-2">{group.label}</div>
               <div className="space-y-0.5">
