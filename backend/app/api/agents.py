@@ -54,8 +54,6 @@ def run_agent_task(
 ):
     start = time.time()
     orchestrator = OrchestratorAgent()
-    # English: Pass tenant_id so agents can read tenant-scoped settings.
-    # Roman Urdu: tenant_id pass karo taake agents tenant-specific settings padh sakein.
     result = orchestrator.execute({
         'request': task_req.request,
         'tenant_id': current_user.tenant_id,
@@ -63,10 +61,8 @@ def run_agent_task(
     duration_ms = (time.time() - start) * 1000
 
     execution = AgentExecution(
-        tenant_id=current_user.tenant_id,
-        user_id=current_user.id,
-        user_email=current_user.email,
-        original_request=result['original_request'],
+        tenant_id=current_user.tenant_id, user_id=current_user.id,
+        user_email=current_user.email, original_request=result['original_request'],
         status=result['status'],
         execution_plan_json=json.dumps(result.get('execution_plan', [])),
         execution_results_json=json.dumps(result.get('execution_results', [])),
@@ -89,14 +85,20 @@ def run_reasoning(
 ):
     start = time.time()
     history_dicts = [h.dict() for h in (task_req.history or [])]
-    result = reasoning_loop(task_req.request, history=history_dicts)
+    # English: Pass tenant + user context so reasoning loop reads correct settings.
+    # Roman Urdu: Tenant aur user context pass karo taake reasoning loop sahi settings padhe.
+    result = reasoning_loop(
+        task_req.request,
+        history=history_dicts,
+        user_id=current_user.id,
+        user_email=current_user.email,
+        tenant_id=current_user.tenant_id,
+    )
     duration_ms = (time.time() - start) * 1000
 
     execution = AgentExecution(
-        tenant_id=current_user.tenant_id,
-        user_id=current_user.id,
-        user_email=current_user.email,
-        original_request=task_req.request,
+        tenant_id=current_user.tenant_id, user_id=current_user.id,
+        user_email=current_user.email, original_request=task_req.request,
         status='completed' if not result.get('error') else 'partial',
         execution_plan_json=json.dumps(result.get('tool_calls', [])),
         execution_results_json=json.dumps({'answer': result.get('answer')}),
@@ -135,21 +137,17 @@ def list_executions(
         db.query(AgentExecution)
         .filter(AgentExecution.tenant_id == current_user.tenant_id)
         .order_by(AgentExecution.created_at.desc())
-        .limit(limit)
-        .all()
+        .limit(limit).all()
     )
     return {
         'total': len(rows),
         'executions': [
             {
-                'id': r.id,
-                'user_email': r.user_email,
+                'id': r.id, 'user_email': r.user_email,
                 'original_request': r.original_request,
-                'status': r.status,
-                'duration_ms': r.duration_ms,
+                'status': r.status, 'duration_ms': r.duration_ms,
                 'created_at': r.created_at.isoformat(),
-            }
-            for r in rows
+            } for r in rows
         ],
     }
 
@@ -169,7 +167,6 @@ def switch_llm_provider(
     if not ok:
         raise HTTPException(status_code=400, detail=f'Unknown provider: {body.provider}')
     return {
-        'ok': True,
-        'primary_provider': gateway.primary_name,
+        'ok': True, 'primary_provider': gateway.primary_name,
         'status': check_ollama_status(),
     }

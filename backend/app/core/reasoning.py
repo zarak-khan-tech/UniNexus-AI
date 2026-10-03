@@ -1,22 +1,22 @@
-"""
-English: Real agentic reasoning loop with memory and human-approval gating
-         for high-risk actions.
-Roman Urdu: Real agentic reasoning loop — memory aur high-risk actions ke liye
-            human approval gating ke saath.
+﻿"""
+English: Real agentic reasoning loop with session memory and tenant awareness.
+Roman Urdu: Real agentic reasoning loop — session memory aur tenant awareness ke saath.
 """
 import json
 import logging
 from typing import List, Dict, Any, Optional
 from backend.app.tools import tool_registry
-from backend.app.tools.base import PermissionLevel
 from backend.app.core.llm_gateway import get_gateway
+from backend.app.services.tenant_settings import get_tenant_settings
 
 logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 5
 MAX_HISTORY_TURNS = 6
 
 
-SYSTEM_PROMPT = """You are the reasoning core of UniNexus AI, a multi-agent 
+# English: Base prompt — dynamic pieces get injected at call time.
+# Roman Urdu: Base prompt — dynamic pieces call time pe inject hote hain.
+BASE_PROMPT = """You are the reasoning core of UniNexus AI, a multi-agent 
 university intelligence platform.
 
 You have access to TOOLS. To answer:
@@ -24,6 +24,15 @@ You have access to TOOLS. To answer:
 2. Call tools with the right arguments.
 3. Look at results. Call more tools if needed.
 4. Produce a final answer USING ONLY FACTS FROM THE TOOL RESULTS.
+
+UNIVERSITY CONTEXT (from this tenant's settings — use these values):
+- Attendance threshold: {attendance_threshold}% — students below this are considered low-attendance.
+- Risk HIGH threshold: below {risk_high_threshold}% attendance OR failing grade (D/F) → High risk.
+- Risk MEDIUM threshold: below {risk_medium_threshold}% attendance OR C grade → Medium risk.
+- University name: {university_name}
+
+When the user asks about attendance or risk WITHOUT specifying a number, 
+use the university's configured thresholds above (not your own guesses).
 
 CRITICAL RULE — ALWAYS CALL A TOOL WHEN THE USER ASKS ABOUT DATA:
 If the user asks for ACTUAL DATA (students, attendance, grades, courses, policies), 
@@ -39,19 +48,11 @@ Phrases that REQUIRE a tool call:
 ANTI-HALLUCINATION:
 - If a fact is NOT in the tool results, DO NOT invent it.
 - When stating a policy, QUOTE or closely paraphrase the actual text.
-- Always cite the source: "Per the Grading System Guidelines..." 
-
-NEVER DESCRIBE A TOOL CALL IN NATURAL LANGUAGE:
-- If you decide a tool is needed, you MUST emit {"action": "tool_call", ...}.
-- Do NOT write sentences like "we can call X tool" or "the update_student_grade tool will...".
-- If you catch yourself describing a tool call, STOP and instead emit the JSON action.
+- Always cite the source.
 
 HIGH-RISK ACTIONS REQUIRE APPROVAL:
-- Some tools are marked HIGH-RISK (write_high) — e.g. update_student_grade.
-- When you call a high-risk tool, it will NOT execute immediately. Instead, it will 
-  return a message saying the action is queued for human approval.
-- In that case, tell the user: "I've queued this action for admin approval. 
-  It will execute once approved." Do NOT try to call the tool again.
+- Tools marked write_high (e.g. update_student_grade) do NOT execute immediately.
+- They are queued for human approval. Tell the user it's been queued. Do NOT call again.
 
 Available tools:
 {tools_desc}
@@ -101,44 +102,45 @@ def _format_history(history: Optional[List[Dict[str, Any]]]) -> str:
     return '\n'.join(lines)
 
 
+def _build_system_prompt(settings: Dict[str, Any]) -> str:
+    """English: Fill in the base prompt with tenant-specific values.
+    Roman Urdu: Base prompt mein tenant-specific values bharo."""
+    tools_desc = _format_tools_for_llm()
+    return BASE_PROMPT.format(
+        attendance_threshold=settings.get('attendance_threshold', 75),
+        risk_high_threshold=settings.get('risk_high_threshold', 60),
+        risk_medium_threshold=settings.get('risk_medium_threshold', 75),
+        university_name=settings.get('university_name', 'the university'),
+        tools_desc=tools_desc,
+    )
+
+
 def _create_approval(user_id: int, user_email: str, tenant_id: int,
                      tool_name: str, args: Dict[str, Any],
                      action_description: str, reasoning: str) -> int:
-    """
-    English: Persist a pending approval for a WRITE_HIGH action.
-    Roman Urdu: WRITE_HIGH action ke liye pending approval save karo.
-    """
     from backend.app.core.database import SessionLocal
     from backend.app.models.approval import Approval
     db = SessionLocal()
     try:
         approval = Approval(
-            tenant_id=tenant_id,
-            user_id=user_id,
-            user_email=user_email,
-            tool_name=tool_name,
-            args_json=json.dumps(args),
-            action_description=action_description,
-            reasoning=reasoning,
+            tenant_id=tenant_id, user_id=user_id, user_email=user_email,
+            tool_name=tool_name, args_json=json.dumps(args),
+            action_description=action_description, reasoning=reasoning,
             status='pending',
         )
         db.add(approval)
         db.commit()
         db.refresh(approval)
-
         try:
             from backend.app.services.notifications import create_notification
             create_notification(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                kind='approval',
+                tenant_id=tenant_id, user_id=user_id, kind='approval',
                 title='New approval request',
                 body=f'{tool_name.replace("_", " ").title()} requires your review.',
                 action_url='/approvals',
             )
         except Exception:
             pass
-
         return approval.id
     finally:
         db.close()
@@ -147,9 +149,12 @@ def _create_approval(user_id: int, user_email: str, tenant_id: int,
 def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
            user_id: Optional[int] = None, user_email: Optional[str] = None,
            tenant_id: Optional[int] = None) -> Dict[str, Any]:
+    # English: Load tenant settings and build the dynamic system prompt.
+    # Roman Urdu: Tenant settings load karo aur dynamic system prompt banao.
+    settings = get_tenant_settings(tenant_id) if tenant_id else {}
+    system = _build_system_prompt(settings)
+
     gw = get_gateway()
-    tools_desc = _format_tools_for_llm()
-    system = SYSTEM_PROMPT.replace("{tools_desc}", tools_desc)
     history_block = _format_history(history)
     conversation = (
         f"{history_block}"
@@ -165,9 +170,7 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             logger.warning(f"Reasoning failed at iteration {iteration}: {resp.error}")
             return {
                 "answer": "I could not complete the reasoning. Please try again.",
-                "tool_calls": tool_calls_log,
-                "iterations": iteration,
-                "error": resp.error,
+                "tool_calls": tool_calls_log, "iterations": iteration, "error": resp.error,
             }
 
         raw = _strip_json_fences(resp.text)
@@ -177,41 +180,17 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             logger.error(f"Bad JSON: {e}. Raw: {raw[:200]}")
             return {
                 "answer": "I had trouble parsing my own reasoning. Please retry.",
-                "tool_calls": tool_calls_log,
-                "iterations": iteration,
-                "error": "invalid_json",
+                "tool_calls": tool_calls_log, "iterations": iteration, "error": "invalid_json",
             }
 
         action = decision.get("action")
 
         if action == "final_answer":
             answer = (decision.get("answer") or "").strip()
-
-            # English: If the LLM just DESCRIBED a tool call, force a retry with a nudge.
-            # Roman Urdu: Agar LLM ne tool call ko sirf DESCRIBE kiya, to nudge ke saath retry karo.
-            lowered = answer.lower()
-            looks_like_description = any([
-                "we can call" in lowered,
-                "should call" in lowered,
-                "will require human approval" in lowered and "tool" in lowered,
-                "call the" in lowered and "tool" in lowered,
-            ])
-            if looks_like_description and iteration < MAX_ITERATIONS:
-                conversation += (
-                    "\n\n[Correction] Your previous response DESCRIBED a tool call "
-                    "instead of emitting an actual tool_call action. "
-                    "Do NOT describe. Emit STRICT JSON: "
-                    "{{\"action\": \"tool_call\", \"tool\": \"tool_name\", \"args\": {{...}}}}. "
-                    "Try again now."
-                )
-                continue
-
             return {
                 "answer": answer or "No answer generated.",
-                "tool_calls": tool_calls_log,
-                "iterations": iteration,
-                "provider": resp.provider,
-                "model": resp.model,
+                "tool_calls": tool_calls_log, "iterations": iteration,
+                "provider": resp.provider, "model": resp.model,
                 "pending_approval_id": pending_approval_id,
             }
 
@@ -222,7 +201,6 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
 
             tool = tool_registry.get(tool_name)
             if not tool:
-                # Unknown tool — log and continue
                 tool_calls_log.append({
                     "iteration": iteration, "tool": tool_name, "args": args,
                     "reasoning": reasoning,
@@ -231,50 +209,34 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 conversation += f"\n\n[Iteration {iteration}] Error: tool '{tool_name}' does not exist."
                 continue
 
-            # English: HIGH-RISK actions are intercepted — approval required.
-            # Roman Urdu: HIGH-RISK actions intercept hote hain — approval zaroori.
+            # English: WRITE_HIGH → approval queue, not direct execution.
+            # Roman Urdu: WRITE_HIGH → approval queue, direct execution nahi.
+            from backend.app.tools.base import PermissionLevel
             if tool.permission == PermissionLevel.WRITE_HIGH:
                 desc = f"Call {tool_name} with args: {json.dumps(args)}"
                 approval_id = _create_approval(
-                    user_id=user_id or 0,
-                    user_email=user_email or 'unknown',
-                    tenant_id=tenant_id or 1,
-                    tool_name=tool_name,
-                    args=args,
-                    action_description=desc,
-                    reasoning=reasoning,
+                    user_id=user_id or 0, user_email=user_email or 'unknown',
+                    tenant_id=tenant_id or 1, tool_name=tool_name,
+                    args=args, action_description=desc, reasoning=reasoning,
                 )
                 pending_approval_id = approval_id
-
                 tool_calls_log.append({
                     "iteration": iteration, "tool": tool_name, "args": args,
                     "reasoning": reasoning,
-                    "summary": {
-                        "success": True,
-                        "count": None,
-                        "queued_for_approval": True,
-                        "approval_id": approval_id,
-                    },
+                    "summary": {"success": True, "queued_for_approval": True, "approval_id": approval_id},
                 })
-
-                fake_result = {
-                    "status": "pending_approval",
-                    "approval_id": approval_id,
-                    "message": (
-                        "This action was queued for human approval. "
-                        "It will execute once an administrator approves. "
-                        "Tell the user it's been queued — do NOT call this tool again."
-                    ),
+                fake = {
+                    "status": "pending_approval", "approval_id": approval_id,
+                    "message": "Queued for human approval. Tell the user. Do NOT call again.",
                 }
                 conversation += (
-                    f"\n\n[Iteration {iteration}] You called tool '{tool_name}' "
-                    f"with args {json.dumps(args)}.\nResult:\n{json.dumps(fake_result)}\n\n"
-                    f"Now produce final_answer informing the user this was queued for approval."
+                    f"\n\n[Iteration {iteration}] You called tool '{tool_name}' with args {json.dumps(args)}.\n"
+                    f"Result:\n{json.dumps(fake)}\n\nNow produce final_answer telling the user it's queued."
                 )
                 continue
 
-            # English: READ / WRITE_LOW — execute immediately.
-            # Roman Urdu: READ / WRITE_LOW — foran execute karo.
+            # English: READ / WRITE_LOW → execute immediately.
+            # Roman Urdu: READ / WRITE_LOW → foran execute.
             result = tool_registry.call(tool_name, **args)
             summary = {
                 "success": result.success,
@@ -292,23 +254,19 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             if len(result_text) > 30000:
                 result_text = result_text[:30000] + '...[truncated]'
             conversation += (
-                f"\n\n[Iteration {iteration}] You called tool '{tool_name}' "
-                f"with args {json.dumps(args)}.\nResult:\n{result_text}\n\n"
-                f"Now decide: call another tool or produce final_answer."
+                f"\n\n[Iteration {iteration}] You called tool '{tool_name}' with args {json.dumps(args)}.\n"
+                f"Result:\n{result_text}\n\nNow decide: call another tool or produce final_answer."
             )
             continue
 
         return {
             "answer": "I produced an unexpected reasoning step. Please retry.",
-            "tool_calls": tool_calls_log,
-            "iterations": iteration,
+            "tool_calls": tool_calls_log, "iterations": iteration,
             "error": f"unknown_action:{action}",
         }
 
     return {
         "answer": "I reached the maximum reasoning steps.",
-        "tool_calls": tool_calls_log,
-        "iterations": MAX_ITERATIONS,
-        "error": "max_iterations",
-        "pending_approval_id": pending_approval_id,
+        "tool_calls": tool_calls_log, "iterations": MAX_ITERATIONS,
+        "error": "max_iterations", "pending_approval_id": pending_approval_id,
     }
