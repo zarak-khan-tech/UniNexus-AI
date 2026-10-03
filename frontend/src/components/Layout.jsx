@@ -37,6 +37,7 @@ const NAV_GROUPS = [
     items: [
       { name: 'Notifications', path: '/notifications' },
       { name: 'Audit Logs', path: '/audit', roles: ['admin', 'super_admin', 'faculty'] },
+      { name: 'Import', path: '/import', roles: ['admin', 'super_admin'] },
       { name: 'Settings', path: '/settings', roles: ['admin', 'super_admin'] },
     ],
   },
