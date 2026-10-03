@@ -2,16 +2,12 @@
 import Layout from '../components/Layout';
 import api from '../api/client';
 
-// English: Color the attendance badge based on thresholds.
-// Roman Urdu: Attendance ke hisaab se badge ka rang set karte hain.
 function attendanceBadge(pct) {
   if (pct < 60) return 'bg-red-50 text-red-700 border-red-200';
   if (pct < 75) return 'bg-amber-50 text-amber-800 border-amber-200';
   return 'bg-emerald-50 text-emerald-700 border-emerald-200';
 }
 
-// English: Small bar showing attendance visual.
-// Roman Urdu: Chhota bar jo attendance ko visually dikhata hai.
 function AttendanceBar({ pct }) {
   const color = pct < 60 ? 'bg-red-500' : pct < 75 ? 'bg-amber-500' : 'bg-emerald-500';
   return (
@@ -26,16 +22,16 @@ function AttendanceBar({ pct }) {
 
 export default function Students() {
   const [students, setStudents] = useState([]);
+  const [scope, setScope] = useState('institution');
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  // English: Load all students with aggregate enrollment + attendance data.
-  // Roman Urdu: Sab students load karo enrollment aur attendance ke saath.
   useEffect(() => {
     const fetchStudents = async () => {
       try {
         const response = await api.get('/academic/students');
-        setStudents(response.data.students);
+        setStudents(response.data.students || []);
+        setScope(response.data.scope || 'institution');
       } catch (err) {
         console.error('Failed to fetch students', err);
       } finally {
@@ -45,8 +41,6 @@ export default function Students() {
     fetchStudents();
   }, []);
 
-  // English: Filter rows as the user types.
-  // Roman Urdu: Jab user type kare to rows filter karo.
   const filtered = students.filter((s) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
@@ -58,8 +52,6 @@ export default function Students() {
     );
   });
 
-  // English: Summary metrics across all students.
-  // Roman Urdu: Sab students ke summary metrics.
   const totalStudents = students.length;
   const avgAttendance = totalStudents
     ? Math.round(students.reduce((sum, s) => sum + (s.average_attendance || 0), 0) / totalStudents)
@@ -69,21 +61,41 @@ export default function Students() {
   return (
     <Layout>
       <div className="p-8 max-w-6xl mx-auto animate-fade-in">
-        {/* ==================== Header ==================== */}
+        {/* Header */}
         <div className="mb-8">
           <h1 className="font-display text-4xl font-bold text-ink-900 mb-2 tracking-tight">
             Students
           </h1>
           <p className="text-ink-500 text-[15px] leading-relaxed">
-            All students registered in your institution, with live enrollment and attendance data.
+            {scope === 'self'
+              ? 'Your personal academic record.'
+              : 'All students registered in your institution, with live enrollment and attendance data.'}
           </p>
         </div>
 
-        {/* ==================== Summary Cards ==================== */}
+        {/* English: Self-scope banner for student users.
+            Roman Urdu: Student users ke liye self-scope banner. */}
+        {scope === 'self' && (
+          <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-semibold text-violet-900">You're viewing your own profile</div>
+              <div className="text-xs text-violet-700 mt-0.5">
+                Institution-wide student data is available to admins and faculty only.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
             <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">
-              Total Students
+              {scope === 'self' ? 'Your Record' : 'Total Students'}
             </div>
             <div className="text-3xl font-display font-bold text-ink-900 tracking-tight">
               {loading ? '—' : totalStudents}
@@ -91,7 +103,7 @@ export default function Students() {
           </div>
           <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
             <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">
-              Average Attendance
+              {scope === 'self' ? 'Your Average Attendance' : 'Average Attendance'}
             </div>
             <div className="text-3xl font-display font-bold text-ink-900 tracking-tight">
               {loading ? '—' : avgAttendance + '%'}
@@ -99,7 +111,7 @@ export default function Students() {
           </div>
           <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
             <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">
-              Below 75% Threshold
+              {scope === 'self' ? 'Below Threshold' : 'Below 75% Threshold'}
             </div>
             <div className="text-3xl font-display font-bold text-red-600 tracking-tight">
               {loading ? '—' : atRisk}
@@ -107,7 +119,7 @@ export default function Students() {
           </div>
         </div>
 
-        {/* ==================== Search ==================== */}
+        {/* Search */}
         <div className="bg-white border border-ink-200 rounded-xl p-4 mb-6 shadow-card">
           <div className="relative">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,7 +135,6 @@ export default function Students() {
           </div>
         </div>
 
-        {/* ==================== Loading ==================== */}
         {loading && (
           <div className="bg-white border border-ink-200 rounded-xl p-16 text-center shadow-card">
             <div className="inline-block w-6 h-6 border-2 border-ink-300 border-t-ink-900 rounded-full animate-spin mb-3"></div>
@@ -131,7 +142,6 @@ export default function Students() {
           </div>
         )}
 
-        {/* ==================== Empty ==================== */}
         {!loading && filtered.length === 0 && (
           <div className="bg-white border-2 border-dashed border-ink-200 rounded-xl p-16 text-center">
             <div className="text-ink-500">
@@ -140,7 +150,6 @@ export default function Students() {
           </div>
         )}
 
-        {/* ==================== Table ==================== */}
         {!loading && filtered.length > 0 && (
           <div className="bg-white border border-ink-200 rounded-xl overflow-hidden shadow-card">
             <div className="overflow-x-auto">
