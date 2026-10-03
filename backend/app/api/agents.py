@@ -1,10 +1,10 @@
 ﻿"""
-English: API routes for agents, reasoning, and LLM provider management.
-Roman Urdu: Agents, reasoning, aur LLM provider management ke API routes.
+English: API routes for agents, reasoning, LLM provider, and agent definitions.
+Roman Urdu: Agents, reasoning, LLM provider, aur agent definitions ke API routes.
 """
 import json
 import time
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from backend.app.core.database import get_db
 from backend.app.core.llm import check_ollama_status
 from backend.app.core.llm_gateway import get_gateway
 from backend.app.core.reasoning import reason as reasoning_loop
+from backend.app.services.agent_definitions import list_agent_definitions, update_agent_definition
 from backend.app.models.user import User
 from backend.app.models.agent_execution import AgentExecution
 
@@ -44,6 +45,15 @@ class ReasoningRequest(BaseModel):
 
 class ProviderSwitchRequest(BaseModel):
     provider: str
+
+
+class AgentDefinitionUpdate(BaseModel):
+    description: Optional[str] = None
+    capabilities: Optional[List[str]] = None
+    supported_tools: Optional[List[str]] = None
+    version: Optional[str] = None
+    is_active: Optional[bool] = None
+    status: Optional[str] = None
 
 
 @router.post('/run')
@@ -85,8 +95,6 @@ def run_reasoning(
 ):
     start = time.time()
     history_dicts = [h.dict() for h in (task_req.history or [])]
-    # English: Pass tenant + user context so reasoning loop reads correct settings.
-    # Roman Urdu: Tenant aur user context pass karo taake reasoning loop sahi settings padhe.
     result = reasoning_loop(
         task_req.request,
         history=history_dicts,
@@ -123,8 +131,27 @@ def run_reasoning(
 
 
 @router.get('/list')
-def list_registered_agents(current_user: User = Depends(get_current_active_user)):
-    return {'agents': registry.list_agents()}
+def list_registered_agents(
+    current_user: User = Depends(get_current_active_user),
+):
+    # English: Read from DB, not hardcoded class list.
+    # Roman Urdu: DB se padho, hardcoded class list nahi.
+    return {'agents': list_agent_definitions(current_user.tenant_id, active_only=True)}
+
+
+@router.patch('/definitions/{agent_name}')
+def patch_agent_definition(
+    agent_name: str,
+    body: AgentDefinitionUpdate,
+    current_user: User = Depends(get_current_active_user),
+):
+    updates = {k: v for k, v in body.dict().items() if v is not None}
+    if not updates:
+        raise HTTPException(status_code=400, detail='No fields to update')
+    row = update_agent_definition(current_user.tenant_id, agent_name, updates)
+    if not row:
+        raise HTTPException(status_code=404, detail=f'Agent definition not found: {agent_name}')
+    return {'ok': True, 'definition': row}
 
 
 @router.get('/executions')

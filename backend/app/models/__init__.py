@@ -8,3 +8,4 @@ from backend.app.models.agent_execution import AgentExecution
 from backend.app.models.approval import Approval
 from backend.app.models.notification import Notification
 from backend.app.models.workflow import Workflow
+from backend.app.models.agent_definition import AgentDefinition
