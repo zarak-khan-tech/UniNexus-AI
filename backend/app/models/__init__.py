@@ -9,3 +9,4 @@ from backend.app.models.approval import Approval
 from backend.app.models.notification import Notification
 from backend.app.models.workflow import Workflow
 from backend.app.models.agent_definition import AgentDefinition
+from backend.app.models.tool_definition import ToolDefinition
