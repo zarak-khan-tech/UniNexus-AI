@@ -1,20 +1,20 @@
 ﻿"""
-English: Real agentic reasoning loop with session memory, tenant awareness,
-         and RAG source tracking.
-Roman Urdu: Real agentic reasoning loop — session memory, tenant awareness,
-            aur RAG source tracking ke saath.
+English: Reasoning loop — reads active tools from tenant DB, respects tool 
+disabled state, tracks RAG sources, multi-turn memory, tenant thresholds.
+Roman Urdu: Reasoning loop — tenant DB se active tools padhta hai, tool 
+disable state respect karta hai, RAG sources track karta hai.
 """
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from backend.app.tools import tool_registry
 from backend.app.core.llm_gateway import get_gateway
 from backend.app.services.tenant_settings import get_tenant_settings
+from backend.app.services.tool_definitions import list_tool_definitions
+from backend.app.tools import tool_registry
 
 logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 5
 MAX_HISTORY_TURNS = 6
-
 
 BASE_PROMPT = """You are the reasoning core of UniNexus AI, a multi-agent 
 university intelligence platform.
@@ -48,7 +48,7 @@ Phrases that REQUIRE a tool call:
 ANTI-HALLUCINATION:
 - If a fact is NOT in the tool results, DO NOT invent it.
 - When stating a policy, QUOTE or closely paraphrase the actual text.
-- Always cite the source by title (e.g. "Per the Examination Rules and Regulations...").
+- Always cite the source by title.
 
 HIGH-RISK ACTIONS REQUIRE APPROVAL:
 - Tools marked write_high (e.g. update_student_grade) do NOT execute immediately.
@@ -58,22 +58,11 @@ Available tools:
 {tools_desc}
 
 Respond with STRICT JSON in one of these two shapes:
-
 A) To call a tool:
 {{"action": "tool_call", "tool": "tool_name", "args": {{...}}, "reasoning": "why"}}
-
 B) When ready to answer:
 {{"action": "final_answer", "answer": "your grounded answer, citing sources"}}
 """
-
-
-def _format_tools_for_llm() -> str:
-    lines = []
-    for t in tool_registry.list():
-        args = t.get('input_schema', {}).get('properties', {})
-        arg_str = ', '.join([f"{k}: {v.get('type', 'any')}" for k, v in args.items()]) or 'no args'
-        lines.append(f"- {t['name']} ({t['permission']}): {t['description']} | args: {arg_str}")
-    return '\n'.join(lines)
 
 
 def _strip_json_fences(raw: str) -> str:
@@ -82,9 +71,34 @@ def _strip_json_fences(raw: str) -> str:
         parts = raw.split("```")
         if len(parts) >= 2:
             raw = parts[1]
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
+            if raw.lower().startswith("json"):
+                raw = raw[4:]
     return raw.strip()
+
+
+def _format_tools_for_llm(tenant_id: Optional[int]) -> str:
+    """
+    English: Read active tool definitions for this tenant from DB; fall back 
+    to class registry if DB has no rows. Filters out disabled tools.
+    Roman Urdu: Tenant ke active tool definitions DB se padho; agar rows na 
+    hon to class registry fallback. Disabled tools filter karo.
+    """
+    tools_meta = None
+    if tenant_id:
+        try:
+            tools_meta = list_tool_definitions(tenant_id, active_only=True)
+        except Exception as e:
+            logger.warning(f"Failed to read tenant tool defs: {e}")
+    if not tools_meta:
+        tools_meta = tool_registry.list()
+
+    lines = []
+    for t in tools_meta:
+        schema = t.get('input_schema') or {}
+        props = schema.get('properties', {}) if isinstance(schema, dict) else {}
+        arg_str = ', '.join([f"{k}: {v.get('type', 'any')}" for k, v in props.items()]) or 'no args'
+        lines.append(f"- {t['name']} ({t['permission']}): {t['description']} | args: {arg_str}")
+    return '\n'.join(lines)
 
 
 def _format_history(history: Optional[List[Dict[str, Any]]]) -> str:
@@ -102,8 +116,8 @@ def _format_history(history: Optional[List[Dict[str, Any]]]) -> str:
     return '\n'.join(lines)
 
 
-def _build_system_prompt(settings: Dict[str, Any]) -> str:
-    tools_desc = _format_tools_for_llm()
+def _build_system_prompt(settings: Dict[str, Any], tenant_id: Optional[int]) -> str:
+    tools_desc = _format_tools_for_llm(tenant_id)
     return BASE_PROMPT.format(
         attendance_threshold=settings.get('attendance_threshold', 75),
         risk_high_threshold=settings.get('risk_high_threshold', 60),
@@ -114,12 +128,6 @@ def _build_system_prompt(settings: Dict[str, Any]) -> str:
 
 
 def _extract_sources_from_tool_result(tool_name: str, result_data: Any) -> List[Dict[str, Any]]:
-    """
-    English: If this tool was semantic_search, extract source citations from its
-             returned documents. Returned as a list of dicts with title, category, similarity.
-    Roman Urdu: Agar ye tool semantic_search tha, to uske returned documents se
-                source citations nikalo (title, category, similarity).
-    """
     if tool_name != 'semantic_search' or not isinstance(result_data, list):
         return []
     sources = []
@@ -138,10 +146,6 @@ def _extract_sources_from_tool_result(tool_name: str, result_data: Any) -> List[
 
 
 def _dedupe_sources(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    English: Remove duplicate sources by title, keeping the highest similarity.
-    Roman Urdu: Title ke hisaab se duplicate sources hatao, sab se zyada similarity rakho.
-    """
     by_title: Dict[str, Dict[str, Any]] = {}
     for s in sources:
         t = s.get('title')
@@ -149,8 +153,6 @@ def _dedupe_sources(sources: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             continue
         if t not in by_title or (s.get('similarity') or 0) > (by_title[t].get('similarity') or 0):
             by_title[t] = s
-    # English: Sort by similarity descending.
-    # Roman Urdu: Similarity descending order mein sort karo.
     return sorted(by_title.values(), key=lambda x: x.get('similarity') or 0, reverse=True)
 
 
@@ -185,12 +187,31 @@ def _create_approval(user_id: int, user_email: str, tenant_id: int,
         db.close()
 
 
+def _is_tool_active(tenant_id: Optional[int], tool_name: str) -> bool:
+    """
+    English: True if this tool is enabled for the tenant. If DB has no 
+    definition row, allow (class registry fallback).
+    Roman Urdu: True agar tool tenant ke liye enabled hai. Agar DB mein row 
+    na ho to allow karo (class registry fallback).
+    """
+    if not tenant_id:
+        return True
+    try:
+        rows = list_tool_definitions(tenant_id, active_only=False)
+        for r in rows:
+            if r['name'] == tool_name:
+                return bool(r.get('is_active', True))
+        # Not present in DB — fall back to registry existence
+        return tool_registry.get(tool_name) is not None
+    except Exception:
+        return True
+
+
 def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
            user_id: Optional[int] = None, user_email: Optional[str] = None,
            tenant_id: Optional[int] = None) -> Dict[str, Any]:
     settings = get_tenant_settings(tenant_id) if tenant_id else {}
-    system = _build_system_prompt(settings)
-
+    system = _build_system_prompt(settings, tenant_id)
     gw = get_gateway()
     history_block = _format_history(history)
     conversation = (
@@ -232,8 +253,6 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 "tool_calls": tool_calls_log, "iterations": iteration,
                 "provider": resp.provider, "model": resp.model,
                 "pending_approval_id": pending_approval_id,
-                # English: Deduped, sorted source citations for the frontend.
-                # Roman Urdu: Deduped, sorted source citations frontend ke liye.
                 "sources": _dedupe_sources(collected_sources),
             }
 
@@ -241,8 +260,8 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             tool_name = decision.get("tool")
             args = decision.get("args") or {}
             reasoning = decision.get("reasoning", "")
-
             tool = tool_registry.get(tool_name)
+
             if not tool:
                 tool_calls_log.append({
                     "iteration": iteration, "tool": tool_name, "args": args,
@@ -250,6 +269,20 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                     "summary": {"success": False, "error": "unknown tool"},
                 })
                 conversation += f"\n\n[Iteration {iteration}] Error: tool '{tool_name}' does not exist."
+                continue
+
+            # English: Block disabled tools at execution time (belt + suspenders).
+            # Roman Urdu: Disabled tools ko execution time pe block karo.
+            if not _is_tool_active(tenant_id, tool_name):
+                tool_calls_log.append({
+                    "iteration": iteration, "tool": tool_name, "args": args,
+                    "reasoning": reasoning,
+                    "summary": {"success": False, "error": "tool_disabled"},
+                })
+                conversation += (
+                    f"\n\n[Iteration {iteration}] Error: tool '{tool_name}' is disabled for this tenant."
+                    f" Do not call it. Choose another tool or produce final_answer."
+                )
                 continue
 
             from backend.app.tools.base import PermissionLevel
@@ -287,8 +320,6 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 "reasoning": reasoning, "summary": summary,
             })
 
-            # English: Track semantic_search sources for citation.
-            # Roman Urdu: semantic_search sources citation ke liye track karo.
             if tool_name == 'semantic_search' and result.success and result.data:
                 extracted = _extract_sources_from_tool_result(tool_name, result.data)
                 collected_sources.extend(extracted)
@@ -299,6 +330,7 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
             }, default=str)
             if len(result_text) > 30000:
                 result_text = result_text[:30000] + '...[truncated]'
+
             conversation += (
                 f"\n\n[Iteration {iteration}] You called tool '{tool_name}' with args {json.dumps(args)}.\n"
                 f"Result:\n{result_text}\n\nNow decide: call another tool or produce final_answer."
