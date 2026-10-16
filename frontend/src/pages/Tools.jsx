@@ -9,7 +9,6 @@ const PERMISSION_META = {
   write_low: { label: 'Write (Low Risk)', short: 'WRITE_LOW', bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500' },
   write_high: { label: 'Write (High Risk)', short: 'WRITE_HIGH', bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' },
 };
-
 function permStyle(p) {
   return PERMISSION_META[p] || { label: p, short: p, bg: 'bg-ink-50', text: 'text-ink-700', border: 'border-ink-200', dot: 'bg-ink-500' };
 }
@@ -40,21 +39,38 @@ export default function Tools() {
   const [counts, setCounts] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState({});
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const fetchTools = async () => {
-      try {
-        const response = await api.get('/tools');
-        setTools(response.data.tools || []);
-        setCounts(response.data.counts || null);
-      } catch (err) {
-        console.error('Failed to fetch tools', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTools();
-  }, []);
+  const fetchTools = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get('/tools');
+      setTools(response.data.tools || []);
+      setCounts(response.data.counts || null);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to load tools.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchTools(); }, []);
+
+  // English: Toggle is_active via PATCH and refresh.
+  // Roman Urdu: is_active ko PATCH se toggle karo aur refresh.
+  const toggleTool = async (name, currentActive) => {
+    setBusy((b) => ({ ...b, [name]: true }));
+    try {
+      await api.patch(`/tools/definitions/${name}`, { is_active: !currentActive });
+      await fetchTools();
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to toggle tool.');
+    } finally {
+      setBusy((b) => ({ ...b, [name]: false }));
+    }
+  };
 
   const filtered = tools.filter((t) => {
     if (!search.trim()) return true;
@@ -66,13 +82,13 @@ export default function Tools() {
     );
   });
 
-  // English: Group tools by category for a cleaner layout.
-  // Roman Urdu: Behtar layout ke liye tools ko category mein group karo.
   const grouped = filtered.reduce((acc, t) => {
     const g = groupTool(t);
     (acc[g] = acc[g] || []).push(t);
     return acc;
   }, {});
+
+  const activeCount = tools.filter((t) => t.is_active !== false).length;
 
   return (
     <Layout>
@@ -86,27 +102,42 @@ export default function Tools() {
           <h1 className="font-display text-4xl font-bold text-ink-900 mb-2 tracking-tight">Tools</h1>
           <p className="text-ink-500 text-[15px] leading-relaxed">
             Internal capability registry — these are the actions the AI can perform on your behalf.
-            You don't need to interact with them directly; high-risk actions are automatically routed to the <span className="text-ink-800 font-semibold">Approvals</span> page.
+            You don't need to interact with them directly; high-risk actions are automatically routed to the{' '}
+            <span className="text-ink-800 font-semibold">Approvals</span> page.
           </p>
         </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-6 text-sm font-medium">
+            {error}
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
             <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">Total Tools</div>
-            <div className="text-3xl font-display font-bold text-ink-900 tracking-tight">{loading ? '—' : counts?.total ?? tools.length}</div>
+            <div className="text-3xl font-display font-bold text-ink-900 tracking-tight">
+              {loading ? '—' : counts?.total ?? tools.length}
+            </div>
+          </div>
+          <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
+            <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">Active</div>
+            <div className="text-3xl font-display font-bold text-emerald-600 tracking-tight">
+              {loading ? '—' : activeCount}
+            </div>
           </div>
           <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
             <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">Read-only</div>
-            <div className="text-3xl font-display font-bold text-blue-700 tracking-tight">{loading ? '—' : counts?.read ?? 0}</div>
+            <div className="text-3xl font-display font-bold text-blue-700 tracking-tight">
+              {loading ? '—' : counts?.read ?? 0}
+            </div>
           </div>
           <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
-            <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">Write (Low)</div>
-            <div className="text-3xl font-display font-bold text-amber-700 tracking-tight">{loading ? '—' : counts?.write_low ?? 0}</div>
-          </div>
-          <div className="bg-white border border-ink-200 rounded-xl p-5 shadow-card hover-lift transition-all">
-            <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">Write (High)</div>
-            <div className="text-3xl font-display font-bold text-red-700 tracking-tight">{loading ? '—' : counts?.write_high ?? 0}</div>
+            <div className="text-xs uppercase tracking-wider text-ink-500 font-medium mb-1.5">Write Actions</div>
+            <div className="text-3xl font-display font-bold text-red-700 tracking-tight">
+              {loading ? '—' : (counts?.write_low ?? 0) + (counts?.write_high ?? 0)}
+            </div>
           </div>
         </div>
 
@@ -154,18 +185,32 @@ export default function Tools() {
                 const args = tool.input_schema?.properties || {};
                 const required = tool.input_schema?.required || [];
                 const argEntries = Object.entries(args);
+                const inactive = tool.is_active === false;
+                const isBusy = !!busy[tool.name];
                 return (
-                  <div key={tool.name} className="relative bg-white border border-ink-200 rounded-2xl p-6 shadow-card hover-lift transition-all overflow-hidden">
-                    <div className={`absolute top-0 left-0 right-0 h-1 ${style.dot}`} />
+                  <div
+                    key={tool.name}
+                    className={`relative bg-white border rounded-2xl p-6 shadow-card hover-lift transition-all overflow-hidden ${inactive ? 'border-ink-100 opacity-70' : 'border-ink-200'}`}
+                  >
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${inactive ? 'bg-ink-200' : style.dot}`} />
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <code className="text-sm font-mono font-bold text-ink-900 bg-ink-50 border border-ink-200 rounded-md px-2.5 py-1">
                         {tool.name}
                       </code>
-                      <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full border ${style.bg} ${style.text} ${style.border} whitespace-nowrap`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`}></span>
-                        {style.short}
-                      </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {inactive ? (
+                          <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full border bg-ink-100 text-ink-600 border-ink-200">
+                            Paused
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-bold px-2.5 py-1 rounded-full border ${style.bg} ${style.text} ${style.border}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`}></span>
+                            {style.short}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <div className="text-[10px] text-ink-400 font-mono mb-3">v{tool.version || '1.0.0'}</div>
                     <p className="text-sm text-ink-600 leading-relaxed mb-4">{tool.description}</p>
                     {argEntries.length > 0 && (
                       <div className="pt-4 border-t border-ink-100">
@@ -175,9 +220,7 @@ export default function Tools() {
                             const isReq = required.includes(argName);
                             return (
                               <span key={argName} className={`text-[11px] font-mono px-2 py-0.5 rounded border ${isReq ? 'bg-ink-900 text-gold-300 border-ink-900' : 'bg-ink-50 text-ink-600 border-ink-200'}`}>
-                                {argName}
-                                <span className="opacity-60">:{argMeta.type || 'any'}</span>
-                                {isReq && <span className="ml-1 text-[9px] font-bold">REQ</span>}
+                                {argName}<span className="opacity-60">:{argMeta.type || 'any'}</span>
                               </span>
                             );
                           })}
@@ -192,6 +235,15 @@ export default function Tools() {
                         <span>Requires human approval before execution.</span>
                       </div>
                     )}
+                    <div className="mt-4 pt-3 border-t border-ink-100 flex items-center justify-between">
+                      <button
+                        onClick={() => toggleTool(tool.name, !inactive)}
+                        disabled={isBusy}
+                        className={`text-xs font-semibold rounded-lg px-3 py-1.5 transition-all border ${inactive ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-white text-ink-700 border-ink-200 hover:border-ink-400'} disabled:opacity-50`}
+                      >
+                        {isBusy ? 'Updating…' : inactive ? 'Enable' : 'Disable'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
