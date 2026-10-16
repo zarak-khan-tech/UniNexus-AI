@@ -2,6 +2,7 @@
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.database import engine, Base
 from backend.app.models import tenant, user, student, course, enrollment, document, agent_execution, approval, notification, workflow
+from backend.app import integrations  # noqa: F401  (triggers adapter registration)
 from backend.app.api import auth, agents, stats, academic, analytics, approvals, tools, notifications, workflows, tenant as tenant_api, imports, documents, search, events as events_api, integrations
 
 app = FastAPI(
