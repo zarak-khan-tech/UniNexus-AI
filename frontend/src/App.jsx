@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import CommandCenter from './pages/CommandCenter';
 import AuditLogs from './pages/AuditLogs';
+import Integrations from './pages/Integrations';
 import ExecutionDetail from './pages/ExecutionDetail';
 import Agents from './pages/Agents';
 import Tools from './pages/Tools';
@@ -47,6 +48,7 @@ function App() {
 
         <Route path="/analytics" element={<Guarded roles={['admin', 'super_admin', 'faculty']}><Analytics /></Guarded>} />
         <Route path="/tools" element={<Guarded roles={['admin', 'super_admin', 'faculty']}><Tools /></Guarded>} />
+        <Route path="/integrations" element={<Guarded roles={['admin', 'super_admin']}><Integrations /></Guarded>} />
         <Route path="/workflows" element={<Guarded roles={['admin', 'super_admin', 'faculty']}><Workflows /></Guarded>} />
         <Route path="/audit" element={<Guarded roles={['admin', 'super_admin', 'faculty']}><AuditLogs /></Guarded>} />
           <Route path="/audit/:id" element={<Guarded roles={['admin', 'super_admin', 'faculty']}><ExecutionDetail /></Guarded>} />
