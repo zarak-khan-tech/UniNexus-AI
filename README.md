@@ -1,12 +1,13 @@
-# UniNexus AI
+﻿# UniNexus AI
 
 **Autonomous Multi-Agent University Intelligence Platform**
 
-Built by **ZARAK KHAN** — a portfolio project exploring agentic AI, tool calling, RAG, human-in-the-loop controls, and workflow automation for university operations.
+Built by **ZARAK KHAN** â€” a portfolio project exploring agentic AI, tool calling, RAG, human-in-the-loop controls, and workflow automation for university operations.
 
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Tests](https://img.shields.io/badge/tests-20%20passing-brightgreen)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ---
@@ -38,6 +39,13 @@ Instead of treating an LLM as a standalone chatbot, UniNexus AI gives the model 
 - Student notification action
 - Grade-update action protected by human approval
 
+
+### Safety & Reliability
+- Prompt-injection scanning (prompt / SQL / command patterns)
+- Hallucination guard: rejects source-citing answers when no evidence was collected
+- Evidence-quality classification for RAG (strong / weak / none)
+- Per-user in-memory rate limiter on reasoning and workflow endpoints
+- Multi-tenant isolation enforced and verified by 8 automated tests
 ### Human-in-the-Loop
 - High-risk actions are intercepted before execution
 - Admin approval queue with Approve / Decline actions
@@ -51,7 +59,7 @@ Instead of treating an LLM as a standalone chatbot, UniNexus AI gives the model 
 - Seeded university policy and academic documents
 
 ### Workflow Automation
-- Trigger → condition → action workflow model
+- Trigger â†’ condition â†’ action workflow model
 - Manual run controls
 - Pause/resume support
 - Friendly execution results
@@ -94,41 +102,41 @@ The project focuses on the **system around the model**, not only the model call.
 ## Architecture
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                       React Frontend                        │
-│ Dashboard • Command Center • Agents • Tools • Workflows    │
-│ Approvals • Knowledge • Analytics • Notifications • Audit  │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ REST / JWT
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                       FastAPI Backend                       │
-│                                                             │
-│  API Routes                                                 │
-│      │                                                      │
-│      ├── Reasoning Loop ──► LLM Gateway                    │
-│      │                         ├── Groq                     │
-│      │                         ├── Gemini                   │
-│      │                         └── Ollama                   │
-│      │                                                      │
-│      ├── Tool Registry ──► Academic / Knowledge / Write    │
-│      │                         │                            │
-│      │                         └── Approval Gate            │
-│      │                                                      │
-│      ├── Agent Registry ──► Attendance / Policy / Risk /   │
-│      │                       Knowledge                      │
-│      │                                                      │
-│      └── Workflow Engine ──► Actions ──► Notifications     │
-│                                                             │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                         Data Layer                          │
-│ SQLite (development) • SQLAlchemy • Vector Store          │
-│ Tenants • Users • Students • Courses • Documents           │
-│ Executions • Approvals • Notifications • Workflows         │
-└─────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                       React Frontend                        â”‚
+â”‚ Dashboard â€¢ Command Center â€¢ Agents â€¢ Tools â€¢ Workflows    â”‚
+â”‚ Approvals â€¢ Knowledge â€¢ Analytics â€¢ Notifications â€¢ Audit  â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                               â”‚ REST / JWT
+                               â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                       FastAPI Backend                       â”‚
+â”‚                                                             â”‚
+â”‚  API Routes                                                 â”‚
+â”‚      â”‚                                                      â”‚
+â”‚      â”œâ”€â”€ Reasoning Loop â”€â”€â–º LLM Gateway                    â”‚
+â”‚      â”‚                         â”œâ”€â”€ Groq                     â”‚
+â”‚      â”‚                         â”œâ”€â”€ Gemini                   â”‚
+â”‚      â”‚                         â””â”€â”€ Ollama                   â”‚
+â”‚      â”‚                                                      â”‚
+â”‚      â”œâ”€â”€ Tool Registry â”€â”€â–º Academic / Knowledge / Write    â”‚
+â”‚      â”‚                         â”‚                            â”‚
+â”‚      â”‚                         â””â”€â”€ Approval Gate            â”‚
+â”‚      â”‚                                                      â”‚
+â”‚      â”œâ”€â”€ Agent Registry â”€â”€â–º Attendance / Policy / Risk /   â”‚
+â”‚      â”‚                       Knowledge                      â”‚
+â”‚      â”‚                                                      â”‚
+â”‚      â””â”€â”€ Workflow Engine â”€â”€â–º Actions â”€â”€â–º Notifications     â”‚
+â”‚                                                             â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¬â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+                               â”‚
+                               â–¼
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                         Data Layer                          â”‚
+â”‚ SQLite (development) â€¢ SQLAlchemy â€¢ Vector Store          â”‚
+â”‚ Tenants â€¢ Users â€¢ Students â€¢ Courses â€¢ Documents           â”‚
+â”‚ Executions â€¢ Approvals â€¢ Notifications â€¢ Workflows         â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Execution Flow
@@ -176,9 +184,9 @@ Current tool categories include:
 
 UniNexus AI uses a unified provider interface so the application can switch between:
 
-- **Groq** — remote inference for fast development/demo usage
-- **Google Gemini** — alternative remote provider
-- **Ollama** — local inference option
+- **Groq** â€” remote inference for fast development/demo usage
+- **Google Gemini** â€” alternative remote provider
+- **Ollama** â€” local inference option
 
 The gateway checks providers in its configured order and moves to another provider when the current provider fails.
 
@@ -209,30 +217,30 @@ The local Ollama model is configurable through `OLLAMA_MODEL`; the repository sh
 
 ```text
 UniNexus-AI/
-├── backend/
-│   └── app/
-│       ├── agents/
-│       ├── api/
-│       ├── core/
-│       │   ├── llm_gateway/
-│       │   ├── reasoning.py
-│       │   ├── embeddings.py
-│       │   └── vector_store.py
-│       ├── models/
-│       ├── services/
-│       └── tools/
-├── frontend/
-│   └── src/
-│       ├── components/
-│       └── pages/
-├── docs/
-│   └── ARCHITECTURE.md
-├── tests/
-├── seed_demo_data.py
-├── seed_rich_documents.py
-├── ingest_documents.py
-├── LICENSE
-└── README.md
+â”œâ”€â”€ backend/
+â”‚   â””â”€â”€ app/
+â”‚       â”œâ”€â”€ agents/
+â”‚       â”œâ”€â”€ api/
+â”‚       â”œâ”€â”€ core/
+â”‚       â”‚   â”œâ”€â”€ llm_gateway/
+â”‚       â”‚   â”œâ”€â”€ reasoning.py
+â”‚       â”‚   â”œâ”€â”€ embeddings.py
+â”‚       â”‚   â””â”€â”€ vector_store.py
+â”‚       â”œâ”€â”€ models/
+â”‚       â”œâ”€â”€ services/
+â”‚       â””â”€â”€ tools/
+â”œâ”€â”€ frontend/
+â”‚   â””â”€â”€ src/
+â”‚       â”œâ”€â”€ components/
+â”‚       â””â”€â”€ pages/
+â”œâ”€â”€ docs/
+â”‚   â””â”€â”€ ARCHITECTURE.md
+â”œâ”€â”€ tests/
+â”œâ”€â”€ seed_demo_data.py
+â”œâ”€â”€ seed_rich_documents.py
+â”œâ”€â”€ ingest_documents.py
+â”œâ”€â”€ LICENSE
+â””â”€â”€ README.md
 ```
 
 ---
@@ -386,4 +394,4 @@ MIT License. See [LICENSE](LICENSE).
 
 ---
 
-**Built by ZARAK KHAN · UniNexus AI · 2026**
+**Built by ZARAK KHAN Â· UniNexus AI Â· 2026**
