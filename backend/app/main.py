@@ -27,6 +27,21 @@ event_bus.subscribe("DocumentUploaded", _log_event)
 event_bus.subscribe("StudentImported", _log_event)
 
 
+# English: Register global error handlers for consistent API responses.
+# Roman Urdu: Consistent API responses ke liye global error handlers register karo.
+from backend.app.core.error_handlers import (
+    http_exception_handler,
+    validation_exception_handler,
+    unhandled_exception_handler,
+)
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, unhandled_exception_handler)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['http://localhost:5173', 'http://127.0.0.1:5173'],
