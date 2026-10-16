@@ -1,4 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../api/client';
 
@@ -35,6 +36,7 @@ function computeStats(rows) {
 }
 
 export default function AuditLogs() {
+  const navigate = useNavigate();
   const [executions, setExecutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -180,7 +182,7 @@ export default function AuditLogs() {
                 </thead>
                 <tbody>
                   {filtered.map((row) => (
-                    <tr key={row.id} className="border-t border-ink-100 hover:bg-ink-50/40 transition-colors">
+                    <tr key={row.id} onClick={() => navigate(`/audit/${row.id}`)} className="border-t border-ink-100 hover:bg-ink-50/40 transition-colors cursor-pointer">
                       <td className="px-4 py-3 text-ink-500 font-mono text-xs">#{row.id}</td>
                       <td className="px-4 py-3 text-ink-700 whitespace-nowrap text-xs">{formatDate(row.created_at)}</td>
                       <td className="px-4 py-3 text-ink-700 text-xs">{row.user_email}</td>
