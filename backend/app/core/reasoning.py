@@ -9,6 +9,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from backend.app.core.llm_gateway import get_gateway
 from backend.app.services.tenant_settings import get_tenant_settings
+from backend.app.core.safety import scan_request, build_safety_preamble
 from backend.app.services.tool_definitions import list_tool_definitions
 from backend.app.tools import tool_registry
 
@@ -252,7 +253,14 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
     system = _build_system_prompt(settings, tenant_id)
     gw = get_gateway()
     history_block = _format_history(history)
+
+    # English: Scan the raw user request for injection attempts.
+    # Roman Urdu: Raw user request ko injection attempts ke liye scan karo.
+    scan = scan_request(user_request)
+    safety_preamble = build_safety_preamble(scan)
+
     conversation = (
+        f"{safety_preamble}"
         f"{history_block}"
         f"User question: {user_request}\n\n"
         f"Your turn. Respond with JSON only."
@@ -314,6 +322,7 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 "provider": resp.provider, "model": resp.model,
                 "pending_approval_id": pending_approval_id,
                 "sources": _dedupe_sources(collected_sources),
+                "safety": scan,
             }
 
         if action == "tool_call":
