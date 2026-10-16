@@ -378,11 +378,16 @@ This is a **portfolio / educational system**, not a production university platfo
 - [x] Notification system
 - [x] Analytics and audit views
 - [x] Automated backend tests
+- [x] Safety layer (prompt injection detection, hallucination guard, rate limiting)
+- [x] Multi-tenant isolation tests (8 scenarios)
+- [x] RBAC with role-aware UI and backend enforcement
+- [x] Document upload for the knowledge base (PDF / TXT / MD)
+- [x] Execution detail view with drill-down from audit logs
 
 ### Planned
 
 - [ ] Docker Compose deployment
-- [ ] CI workflow for automated tests
+- [x] CI workflow for automated tests
 - [ ] LMS / SIS connectors such as Moodle or Canvas
 - [ ] More granular role-based UI permissions
 - [ ] Production-grade vector database option
