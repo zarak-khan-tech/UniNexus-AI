@@ -1,6 +1,7 @@
 ﻿import { NavLink, useNavigate, Link } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
+import SearchBox from './SearchBox';
 
 // English: Each nav item declares which roles can see it. Missing `roles` means
 //         visible to everyone (Dashboard, Command Center, etc.).
@@ -274,7 +275,8 @@ export default function Layout({ children }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <NotificationBell />
+              <SearchBox />
+          <NotificationBell />
               <button onClick={handleLogout} className="text-sm text-ink-600 hover:text-ink-900 px-3 py-1.5 rounded-lg hover:bg-ink-50 transition-colors">
                 Sign out
               </button>
