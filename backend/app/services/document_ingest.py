@@ -10,6 +10,7 @@ from backend.app.core.database import SessionLocal
 from backend.app.core.embeddings import embedding_service
 from backend.app.core.vector_store import vector_store
 from backend.app.models.document import Document
+from backend.app.core.events import event_bus, Event
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,22 @@ def ingest_document(tenant_id: int, title: str, category: str, content: str) -> 
         embedded += 1
 
     vector_store.save()
+    # English: Publish an event so subscribers (workflows, notifications) can react.
+    # Roman Urdu: Event publish karo taake subscribers (workflows, notifications) react kar sakein.
+    try:
+        event_bus.publish(Event(
+            event_type='DocumentUploaded',
+            tenant_id=tenant_id,
+            payload={
+                'document_id': doc_id,
+                'title': title,
+                'category': category or 'Policy',
+                'chunks': embedded,
+            },
+        ))
+    except Exception as e:
+        logger.warning(f"Failed to publish DocumentUploaded event: {e}")
+
     return {
         'document_id': doc_id,
         'title': title,

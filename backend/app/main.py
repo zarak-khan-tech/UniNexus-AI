@@ -2,13 +2,29 @@
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.core.database import engine, Base
 from backend.app.models import tenant, user, student, course, enrollment, document, agent_execution, approval, notification, workflow
-from backend.app.api import auth, agents, stats, academic, analytics, approvals, tools, notifications, workflows, tenant as tenant_api, imports, documents, search
+from backend.app.api import auth, agents, stats, academic, analytics, approvals, tools, notifications, workflows, tenant as tenant_api, imports, documents, search, events as events_api
 
 app = FastAPI(
     title='UniNexus AI API',
     description='Autonomous Multi-Agent University Intelligence Platform',
     version='0.1.0',
 )
+
+import logging
+
+# English: Event bus demo subscriber setup.
+# Roman Urdu: Event bus demo subscriber setup.
+_logger = logging.getLogger("uninexus.events")
+
+
+def _log_event(e):
+    _logger.info(f"[event] {e.event_type} tenant={e.tenant_id} payload_keys={list(e.payload.keys())}")
+
+
+from backend.app.core.events import event_bus  # noqa: E402
+event_bus.subscribe("DocumentUploaded", _log_event)
+event_bus.subscribe("StudentImported", _log_event)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,6 +52,7 @@ app.include_router(tenant_api.router)
 app.include_router(imports.router)
 app.include_router(documents.router)
 app.include_router(search.router)
+app.include_router(events_api.router)
 
 @app.get('/')
 def read_root():
