@@ -18,6 +18,7 @@ from backend.app.core.database import get_db
 from backend.app.core.llm import check_ollama_status
 from backend.app.core.llm_gateway import get_gateway
 from backend.app.core.reasoning import reason as reasoning_loop
+from backend.app.core.rate_limit import rate_limiter
 from backend.app.services.agent_definitions import list_agent_definitions, update_agent_definition
 from backend.app.models.user import User
 from backend.app.models.agent_execution import AgentExecution
@@ -63,6 +64,16 @@ def run_agent_task(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
+    # English: Per-user rate limit — 30 requests / 60s by default.
+    # Roman Urdu: Per-user rate limit — 30 requests / 60s default.
+    allowed, retry_after = rate_limiter.check(current_user.email)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many requests. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     start = time.time()
     orchestrator = OrchestratorAgent()
     result = orchestrator.execute({
@@ -94,6 +105,16 @@ def run_reasoning(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
+    # English: Per-user rate limit — same bucket as /agents/run.
+    # Roman Urdu: Per-user rate limit — /agents/run wala same bucket.
+    allowed, retry_after = rate_limiter.check(current_user.email)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many requests. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
     start = time.time()
     history_dicts = [h.dict() for h in (task_req.history or [])]
     result = reasoning_loop(
