@@ -15,11 +15,9 @@ from backend.app.models.user import User
 from backend.app.core.security import get_password_hash
 
 
-# 
-=============================================================================
+# -----------------------------------------------------------------------------
 # Helpers
-# 
-=============================================================================
+# -----------------------------------------------------------------------------
 
 def _create_second_tenant(db_session, name='Other University', domain='other.edu',
                           admin_email='admin2@other.edu'):
@@ -55,11 +53,9 @@ def _login(client, email, password='pass123456'):
     return {'Authorization': 'Bearer ' + r.json()['access_token']}
 
 
-# 
-=============================================================================
+# -----------------------------------------------------------------------------
 # Tests
-# 
-=============================================================================
+# -----------------------------------------------------------------------------
 
 def test_students_are_isolated(client, db_session, auth_headers):
     """
@@ -168,7 +164,7 @@ def test_agent_executions_are_isolated(client, db_session, auth_headers):
     assert 'B request' not in requests
 
 
-def test_tenant_a_admin_cannot_see_tenant_b_via_login(client, db_session):
+def test_tenant_b_admin_cannot_see_tenant_a_via_login(client, db_session):
     """
     English: Log in as Tenant B's admin and confirm they don't see Tenant A's data.
     Roman Urdu: Tenant B ke admin se login karo aur confirm karo ke wo Tenant A ka 
@@ -183,7 +179,6 @@ def test_tenant_a_admin_cannot_see_tenant_b_via_login(client, db_session):
     db_session.add_all([s_a, s_b])
     db_session.commit()
 
-    # Log in as Tenant B's admin
     h_b = _login(client, 'admin2@other.edu')
     r = client.get('/academic/students', headers=h_b)
     assert r.status_code == 200
@@ -199,7 +194,6 @@ def test_tenant_settings_are_isolated(client, db_session, auth_headers):
     """
     t2, _ = _create_second_tenant(db_session)
 
-    # Set custom setting for Tenant B
     import json
     t2.settings_json = json.dumps({'university_name': 'Tenant B University'})
     db_session.commit()
@@ -207,7 +201,6 @@ def test_tenant_settings_are_isolated(client, db_session, auth_headers):
     r = client.get('/tenant/settings', headers=auth_headers)
     assert r.status_code == 200
     assert r.json()['tenant_id'] == 1
-    # Tenant A must not see Tenant B's university name
     assert r.json()['settings'].get('university_name') != 'Tenant B University'
 
 
@@ -234,7 +227,6 @@ def test_admin_of_tenant_b_creates_student_in_own_tenant(client, db_session):
     assert r.status_code == 200, r.text
     assert r.json()['added'] == 1
 
-    # Confirm the new student belongs to tenant t2
     new_student = db_session.query(Student).filter(Student.student_number == 'S999').first()
     assert new_student is not None
     assert new_student.tenant_id == t2.id
