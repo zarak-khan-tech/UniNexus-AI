@@ -218,6 +218,33 @@ def _is_tool_active(tenant_id: Optional[int], tool_name: str) -> bool:
         return True
 
 
+
+# English: Detect answers that cite sources even though no tool returned any.
+# Roman Urdu: Aisi answers detect karo jo sources cite karein lekin koi tool 
+# ne kuch return na kiya ho.
+_HALLUCINATION_PHRASES = (
+    'according to the',
+    'per the university',
+    'source:',
+    'the university policy states',
+    'the policy says',
+    'as stated in the',
+    'strong evidence',
+)
+
+
+def _looks_like_hallucination(answer: str, collected_sources: list) -> bool:
+    """
+    English: True if the answer cites sources/policies but we collected none.
+    Roman Urdu: True agar answer sources/policies cite kare lekin humne koi 
+    collect nahi kiya.
+    """
+    if collected_sources:
+        return False
+    lowered = (answer or '').lower()
+    return any(p in lowered for p in _HALLUCINATION_PHRASES)
+
+
 def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
            user_id: Optional[int] = None, user_email: Optional[str] = None,
            tenant_id: Optional[int] = None) -> Dict[str, Any]:
@@ -259,6 +286,28 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
 
         if action == "final_answer":
             answer = (decision.get("answer") or "").strip()
+
+            # English: Hallucination guard — reject answers that cite 
+            # sources when no sources were collected.
+            # Roman Urdu: Hallucination guard — agar koi source collect 
+            # na hua ho aur answer sources cite kare, to reject karo.
+            if _looks_like_hallucination(answer, collected_sources):
+                logger.warning(
+                    "Hallucination guard triggered at iteration "
+                    f"{iteration} — rejecting source-citing answer with no "
+                    "collected sources."
+                )
+                conversation += (
+                    "\n\n[Correction] Your previous answer cited sources "
+                    "or policies, but you did NOT call semantic_search "
+                    "(or it returned no results). This is a hallucination. "
+                    "You MUST either: (a) call semantic_search to retrieve "
+                    "real documents, or (b) reply honestly that the "
+                    "information is not in the knowledge base. Do NOT "
+                    "invent policies or credentials."
+                )
+                continue
+
             return {
                 "answer": answer or "No answer generated.",
                 "tool_calls": tool_calls_log, "iterations": iteration,
