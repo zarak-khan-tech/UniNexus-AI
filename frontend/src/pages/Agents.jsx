@@ -25,6 +25,7 @@ function fallbackMeta(name) {
 
 export default function Agents() {
   const [agents, setAgents] = useState([]);
+  const [health, setHealth] = useState({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState({});
   const [error, setError] = useState(null);
@@ -33,8 +34,14 @@ export default function Agents() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.get('/agents/list');
-      setAgents(response.data.agents || []);
+      const [listRes, healthRes] = await Promise.all([
+        api.get('/agents/list'),
+        api.get('/agents/health').catch(() => ({ data: { agents: [] } })),
+      ]);
+      setAgents(listRes.data.agents || []);
+      const hMap = {};
+      (healthRes.data.agents || []).forEach((h) => { hMap[h.agent] = h; });
+      setHealth(hMap);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load agents.');
     } finally {
