@@ -28,7 +28,9 @@ def test_register_duplicate_email(client):
     # Second registration with same email should fail
     response = client.post('/auth/register', json=payload)
     assert response.status_code == 400
-    assert 'already registered' in response.json()['detail'].lower()
+    body = response.json()
+    msg = body.get('error', {}).get('message', '') or body.get('detail', '')
+    assert 'already registered' in msg.lower()
 
 
 def test_login_success(client):
