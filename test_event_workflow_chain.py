@@ -1,17 +1,20 @@
 ﻿"""
-English: Verify event -> workflow auto-trigger chain.
-Roman Urdu: Event -> workflow auto-trigger chain verify karo.
+English: Verify event -> workflow auto-trigger chain (self-contained).
+Roman Urdu: Event -> workflow auto-trigger chain verify karo (self-contained).
 """
 import json
-import sqlite3
 
 from backend.app.core.database import SessionLocal
 from backend.app.models.tenant import Tenant
 from backend.app.models.user import User
 from backend.app.models.workflow import Workflow
 from backend.app.core.events import event_bus, Event
+from backend.app.services.event_triggers import register_event_triggers
 
-# 1. Clean slate — remove any test workflows named "Event Fire Test"
+# English: Register the bridge in THIS process too.
+# Roman Urdu: Is process mein bhi bridge register karo.
+register_event_triggers()
+
 db = SessionLocal()
 t = db.query(Tenant).first()
 u = db.query(User).filter(User.role == 'admin').first()
@@ -20,7 +23,6 @@ tid = t.id
 db.query(Workflow).filter(Workflow.name == 'Event Fire Test').delete()
 db.commit()
 
-# 2. Create a workflow that listens to DocumentUploaded
 wf = Workflow(
     tenant_id=tid,
     user_id=u.id,
@@ -40,7 +42,6 @@ db.close()
 
 print(f"Created workflow id={wf_id}, listening for DocumentUploaded")
 
-# 3. Publish the event — the bridge should trigger the workflow
 n = event_bus.publish(Event(
     event_type='DocumentUploaded',
     tenant_id=tid,
@@ -48,13 +49,11 @@ n = event_bus.publish(Event(
 ))
 print(f"Event published, {n} handler(s) ran")
 
-# 4. Verify workflow actually ran — check run_count + last_run_at
 db = SessionLocal()
 wf_after = db.query(Workflow).filter(Workflow.id == wf_id).first()
 print(f"run_count: {wf_after.run_count}")
 print(f"last_run_at: {wf_after.last_run_at}")
 
-# Cleanup
 db.query(Workflow).filter(Workflow.id == wf_id).delete()
 db.commit()
 db.close()
