@@ -31,6 +31,13 @@ Instead of treating an LLM as a standalone chatbot, UniNexus AI gives the model 
 - Structured execution traces containing iterations, tools, arguments, and results
 - Deterministic planning fallback when an LLM provider is unavailable
 
+### Access Control & Observability
+- Role-based access control (Super Admin / University Admin / Faculty / Student)
+- Role-aware sidebar, route guards, and Access Denied page
+- Backend-enforced data scoping (students see only their own record)
+- Multi-tenant isolation verified by 8 automated tests
+- Execution detail view with full plan, tool trace, and answer drill-down
+- Per-execution duration, status, and reasoning-vs-workflow type detection
 ### Tool System
 - Central tool registry for controlled execution
 - Permission levels for read and write operations
@@ -58,6 +65,11 @@ Instead of treating an LLM as a standalone chatbot, UniNexus AI gives the model 
 - Cosine-similarity retrieval
 - Seeded university policy and academic documents
 
+### Data Management
+- CSV import for students, courses, and enrollments (admin-only, validation, duplicate handling)
+- Document upload for the knowledge base (PDF / TXT / MD)
+- Auto-chunking and embedding on upload
+- Duplicate title rejection per tenant
 ### Workflow Automation
 - Trigger â†’ condition â†’ action workflow model
 - Manual run controls
