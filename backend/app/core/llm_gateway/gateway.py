@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from backend.app.core.llm_gateway.base import LLMResponse
+from backend.app.core.reliability import run_with_timeout
 from backend.app.core.llm_gateway.ollama_provider import OllamaProvider
 from backend.app.core.llm_gateway.gemini_provider import GeminiProvider
 from backend.app.core.llm_gateway.groq_provider import GroqProvider
@@ -96,7 +97,15 @@ class LLMGateway:
             provider = self.providers.get(name)
             if not provider:
                 continue
-            resp = provider.generate(prompt, json_mode=json_mode)
+            try:
+                # English: Wrap the LLM call in a 20s timeout.
+                # Roman Urdu: LLM call ko 20s timeout mein wrap karo.
+                resp = run_with_timeout(provider.generate, 20.0, prompt, json_mode=json_mode)
+            except TimeoutError:
+                resp = LLMResponse(
+                    text="", provider=name, model="timeout",
+                    success=False, error="Provider timed out after 20 seconds."
+                )
             if resp.success:
                 logger.info(f"LLM gateway: used {name} ({resp.model})")
                 return resp
