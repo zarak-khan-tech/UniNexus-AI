@@ -27,6 +27,13 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    
+    // English: Extract message from new error envelope to legacy `detail` for UI compatibility.
+    // Roman Urdu: Naye error format se message nikal kar purane `detail` mein daalo taake UI break na ho.
+    if (error.response?.data?.error?.message) {
+      error.response.data.detail = error.response.data.error.message;
+    }
+    
     return Promise.reject(error);
   }
 );
