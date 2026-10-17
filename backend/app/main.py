@@ -22,7 +22,8 @@ def _log_event(e):
     _logger.info(f"[event] {e.event_type} tenant={e.tenant_id} payload_keys={list(e.payload.keys())}")
 
 
-from backend.app.core.events import event_bus  # noqa: E402
+from backend.app.core.events import event_bus
+from backend.app.services.event_triggers import register_event_triggers  # noqa: E402
 event_bus.subscribe("DocumentUploaded", _log_event)
 event_bus.subscribe("StudentImported", _log_event)
 
@@ -54,6 +55,7 @@ app.add_middleware(
 @app.on_event('startup')
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    register_event_triggers()
 
 app.include_router(auth.router)
 app.include_router(agents.router)
