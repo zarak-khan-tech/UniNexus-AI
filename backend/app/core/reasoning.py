@@ -12,6 +12,8 @@ from backend.app.services.tenant_settings import get_tenant_settings
 from backend.app.core.safety import scan_request, build_safety_preamble
 from backend.app.services.tool_definitions import list_tool_definitions
 from backend.app.tools import tool_registry
+from backend.app.core.reliability import run_with_timeout
+from backend.app.tools.base import ToolResult
 
 logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 5
@@ -378,7 +380,12 @@ def reason(user_request: str, history: Optional[List[Dict[str, Any]]] = None,
                 )
                 continue
 
-            result = tool_registry.call(tool_name, **args)
+            try:
+                # English: Wrap in a 15s timeout to prevent hanging.
+                # Roman Urdu: 15s timeout mein wrap karo taake system hang na ho.
+                result = run_with_timeout(tool_registry.call, 15.0, tool_name, **args)
+            except TimeoutError:
+                result = ToolResult(success=False, error="Tool execution timed out after 15 seconds.")
             summary = {
                 "success": result.success,
                 "count": result.metadata.get("count") if result.metadata else None,
