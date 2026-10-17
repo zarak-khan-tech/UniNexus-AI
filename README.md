@@ -7,7 +7,7 @@ Built by **ZARAK KHAN** â€” a portfolio project exploring agentic AI, tool 
 [![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Tests](https://img.shields.io/badge/tests-20%20passing-brightgreen)](tests/)
+[![Tests](https://img.shields.io/badge/tests-48%20passing-brightgreen)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ---
@@ -70,6 +70,21 @@ Instead of treating an LLM as a standalone chatbot, UniNexus AI gives the model 
 - Document upload for the knowledge base (PDF / TXT / MD)
 - Auto-chunking and embedding on upload
 - Duplicate title rejection per tenant
+### Event Architecture
+- Lightweight in-process pub/sub event bus
+- Real-time event history API for administrators
+- Auto-triggering workflows based on system events (e.g., DocumentUploaded)
+
+### Integrations Architecture
+- Honest integration interface (no fake connections)
+- Pluggable adapters (Generic REST architecture-ready)
+- Admin UI to view integration status and test connections
+
+### Error Handling
+- Consistent JSON error envelope across the entire API
+- Proper validation error mapping (422)
+- Graceful 500 fallback without exposing stack traces
+
 ### Workflow Automation
 - Trigger â†’ condition â†’ action workflow model
 - Manual run controls
