@@ -126,6 +126,48 @@ The project focuses on the **system around the model**, not only the model call.
 
 ---
 
+
+---
+
+## 📸 Project Showcase
+
+### 🧠 AI Command Center & Reasoning
+*Real agentic reasoning with multi-turn memory, tool-calling, and the anti-hallucination guard in action.*
+
+**Agent Workflow Execution:**
+![Command Center Workflow](docs/screenshots/Command-Center-Agent-Workflow.png)
+
+**Multi-turn Reasoning & Hallucination Guard:**
+![Reasoning Loop](docs/screenshots/Reasoning-Loop.png)
+
+### 📊 Dashboards & Institutional Analytics
+*Live snapshots of the multi-agent platform, tracking executions, risk distribution, and agent usage.*
+
+![Dashboard Analytics](docs/screenshots/Dashboard-Analytics.png)
+![Dashboard Extras](docs/screenshots/Dashboard-Search-Settings-Import-Integration.png)
+
+### 🤖 Multi-Agent Platform Architecture
+*DB-driven agents and tools with live health stats, permission levels, and event-driven workflows.*
+
+![Agents & Workflows](docs/screenshots/Agents-Registry-Workflows.png)
+![Tools Registry](docs/screenshots/Tools-Registry.png)
+
+### 📚 Data Management & RAG
+*CSV imports, document uploads with auto-chunking, and vector-based semantic search.*
+
+![Students Courses Knowledge Base](docs/screenshots/Students-Courses-KnowledgeBase.png)
+
+### 🔒 Security & Observability
+*Full audit trails, human-in-the-loop approvals for WRITE_HIGH actions, and system notifications.*
+
+**Audit Logs & Execution Trace:**
+![Audit Logs](docs/screenshots/Audit-Logs.png)
+
+**Approvals & Notifications:**
+![Approvals Notifications](docs/screenshots/Approvals-Notifications.png)
+
+---
+
 ## Architecture
 
 ```text
